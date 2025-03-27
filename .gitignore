@@ -172,3 +172,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Cursor
+.cursor/
+
+# temp folders
+/pipeline
+/models
+/api
