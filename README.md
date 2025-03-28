@@ -1,62 +1,96 @@
 # Humble Clay
 
-Humble API version of Clay's AI Agent.
+A FastAPI service for processing prompts through LLM models.
 
-## Development Setup
+## Setup
 
-### Prerequisites
-
-- Python 3.12 or higher
-- `uv` package manager
-
-### Installation
-
-1. Clone the repository:
+### 1. Environment Setup
+Create a `.env` file in the project root:
 ```bash
-git clone https://github.com/jsnyde0/humble-clay.git
-cd humble-clay
+# OpenRouter API Key for LLM access
+OPENROUTER_API_KEY=your_openrouter_key
+
+# API Key for securing endpoints (generate using command below)
+API_KEY=your_api_key
 ```
 
-2. Install dependencies using `uv`:
+### 2. Generate API Key
+Run this Python command to generate a secure API key:
 ```bash
-uv pip install -e .
+python -c "import secrets; print(f'API_KEY={secrets.token_urlsafe(32)}')"
+```
+Add the generated key to your `.env` file.
+
+### 3. Install Dependencies
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
 ```
 
-### Running the API
-
-Start the development server:
+### 4. Run the Server
 ```bash
 uv run uvicorn src.api.main:app --reload
 ```
 
-The API will be available at `http://localhost:8000`
+## API Usage
 
-### API Documentation
+### Authentication
+All endpoints require an API key in the `X-API-Key` header:
+```bash
+X-API-Key: your_api_key
+```
 
-Once the server is running, you can access:
-- Interactive API docs (Swagger UI): `http://localhost:8000/docs`
+### Single Prompt
+```bash
+curl -X POST "http://localhost:8000/api/v1/prompt" \
+     -H "X-API-Key: your_api_key" \
+     -H "Content-Type: application/json" \
+     -d '{"prompt": "Hello, how are you?"}'
+```
+
+### Multiple Prompts
+```bash
+curl -X POST "http://localhost:8000/api/v1/prompt" \
+     -H "X-API-Key: your_api_key" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "prompts": [
+         {"prompt": "Hello"},
+         {"prompt": "How are you?"}
+       ]
+     }'
+```
+
+### Google Apps Script Usage
+```javascript
+function callHumbleClay(prompt) {
+  const API_KEY = 'your_api_key';  // Store in Script Properties
+  const API_URL = 'http://your-api-url/api/v1/prompt';
+  
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': API_KEY
+    },
+    payload: JSON.stringify({
+      prompt: prompt
+    })
+  };
+  
+  const response = UrlFetchApp.fetch(API_URL, options);
+  return JSON.parse(response.getContentText());
+}
+```
+
+## Development
 
 ### Running Tests
-
 ```bash
-uv run pytest
-```
+# Run all tests
+uv run pytest -v
 
-## Project Structure
-
-```
-humble_clay/
-├── src/
-│   └── api/
-│       └── main.py         # FastAPI application
-├── tests/
-│   └── test_api.py        # API tests
-└── pyproject.toml         # Project configuration
-```
-
-## Development Guidelines
-Install pre-commit hooks:
-
-```bash
-uv run pre-commit install
+# Run LLM integration tests
+uv run pytest -v -m llm
 ```
