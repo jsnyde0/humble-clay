@@ -1,10 +1,17 @@
-import asyncio
-import os
-from typing import List, Optional
+"""Main FastAPI application."""
 
-import httpx
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+import asyncio
+
+from fastapi import Depends, FastAPI
+
+from .auth import verify_api_key
+from .llm import process_with_llm
+from .models import (
+    MultiplePromptsRequest,
+    MultiplePromptsResponse,
+    PromptRequest,
+    PromptResponse,
+)
 
 app = FastAPI(
     title="Humble Clay API",
@@ -12,87 +19,60 @@ app = FastAPI(
     version="0.1.0",
 )
 
-
-# Pydantic models
-class PromptRequest(BaseModel):
-    prompt: str = Field(
-        ..., min_length=1, description="The prompt to send to the AI model"
-    )
-
-
-class PromptResponse(BaseModel):
-    response: Optional[str] = None
-    status: str = "success"
-    error: Optional[str] = None
-
-
-class MultiplePromptsRequest(BaseModel):
-    prompts: List[PromptRequest] = Field(
-        ..., min_length=1, max_length=1000, description="List of prompts to process"
-    )
-
-
-class MultiplePromptsResponse(BaseModel):
-    responses: List[PromptResponse]
-
-
-async def process_with_llm(prompt: str) -> str:
-    """Process prompt with OpenRouter API using Gemini Flash 2.0 Lite."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        raise Exception("OpenRouter API key not configured")
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "HTTP-Referer": "https://github.com/jsnyde0/humble-clay",  # Required by OpenRouter
-            },
-            json={
-                "model": "google/gemini-pro",  # Gemini Flash 2.0 Lite
-                "messages": [{"role": "user", "content": prompt}],
-            },
-        )
-
-        if response.status_code != 200:
-            raise Exception(f"OpenRouter API error: {response.text}")
-
-        result = response.json()
-        return result["choices"][0]["message"]["content"]
-
-
-@app.post("/api/v1/prompt", response_model=PromptResponse)
-async def process_prompt(request: PromptRequest):
-    """Process a single prompt using Gemini Flash 2.0 Lite."""
-    try:
-        response_text = await process_with_llm(request.prompt)
-        return PromptResponse(response=response_text)
-    except Exception as e:
-        # Raise HTTP exception instead of returning response
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# Constant for batch size
+# Batch processing configuration
 BATCH_SIZE = 10
 
 
+@app.get("/")
+async def root():
+    """Root endpoint with basic information."""
+    return {
+        "name": "Humble Clay",
+        "description": "AI-powered Google Sheets add-on",
+        "version": "0.1.0",
+    }
+
+
+@app.get("/health")
+async def health():
+    """Health check endpoint."""
+    return {"status": "healthy", "version": "0.1.0"}
+
+
+@app.post("/api/v1/prompt", response_model=PromptResponse)
+async def process_prompt(
+    request: PromptRequest,
+    api_key: str = Depends(verify_api_key),  # This is where the magic happens!
+):
+    """
+    Process a single prompt.
+
+    The Depends(verify_api_key) tells FastAPI to:
+    1. Call verify_api_key before running this function
+    2. Only run this function if verify_api_key succeeds
+    3. Return an error response if verify_api_key raises an exception
+    """
+    try:
+        response = await process_with_llm(request.prompt)
+        return PromptResponse(response=response)
+    except Exception as e:
+        return PromptResponse(status="error", error=str(e))
+
+
 @app.post("/api/v1/prompts", response_model=MultiplePromptsResponse)
-async def process_prompts(request: MultiplePromptsRequest):
+async def process_prompts(
+    request: MultiplePromptsRequest, api_key: str = Depends(verify_api_key)
+):
     """Process multiple prompts in batches."""
     all_responses = []
 
-    # Process prompts in batches
     for i in range(0, len(request.prompts), BATCH_SIZE):
         batch = request.prompts[i : i + BATCH_SIZE]
-
-        # Process batch concurrently
         batch_responses = await asyncio.gather(
             *[process_with_llm(prompt.prompt) for prompt in batch],
             return_exceptions=True,
         )
 
-        # Convert responses to PromptResponse objects
         for response in batch_responses:
             if isinstance(response, Exception):
                 all_responses.append(
@@ -104,24 +84,3 @@ async def process_prompts(request: MultiplePromptsRequest):
                 )
 
     return MultiplePromptsResponse(responses=all_responses)
-
-
-class HealthResponse(BaseModel):
-    status: str
-    version: str
-
-
-@app.get("/health", response_model=HealthResponse)
-async def health_check():
-    """Simple health check endpoint."""
-    return HealthResponse(status="healthy", version="0.1.0")
-
-
-@app.get("/")
-async def root():
-    """Root endpoint with basic information."""
-    return {
-        "name": "Humble Clay",
-        "description": "AI-powered Google Sheets add-on",
-        "version": "0.1.0",
-    }
