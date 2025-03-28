@@ -71,14 +71,17 @@ actions:
 
       Task Content Guidelines:
       1. Requirements MUST:
-         - Describe WHAT needs to be done, not HOW
-         - Be implementation-agnostic
-         - Be measurable and verifiable
+         - Describe HOW we're going to do something
+         - Break down work into clear steps
+         - Include specific testing needs
+         - Link to specifications
       
       2. Tasks MUST NOT contain:
          - Implementation code
-         - Specific technical solutions
-         - Design decisions
+         - Duplicate specification content
+         - Define system behavior (use specs)
+         - Include API contracts (use specs)
+         - Mix multiple implementation stages
       
       The task will be stored in `.cursor/tasks/` with an Open (📝) status
       and added to the task index in `.cursor/TASKS.md`

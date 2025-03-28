@@ -37,12 +37,65 @@ Example Response:
 ```
 
 ### Stage 2: Batch Processing
-Add batching:
-- [ ] Add internal BATCH_SIZE variable (default: 10)
-- [ ] Process prompts in batches
-- [ ] Maintain overall response order
-- [ ] Handle errors per batch
-- [ ] Add configuration endpoint for batch size
+
+### System Behavior
+The system must process large arrays of prompts efficiently by:
+- Breaking requests into smaller batches
+- Processing batches concurrently while managing resources
+- Maintaining original prompt order in responses
+- Continuing processing when individual prompts fail
+
+### Configuration
+Batch processing must be configurable to allow optimization:
+- Adjustable batch sizes
+- Default size: 10 prompts per batch
+- Runtime configuration without service restart
+
+### API Contracts
+
+#### Process Multiple Prompts
+```json
+POST /api/v1/prompts
+Request:
+{
+    "prompts": [
+        {"prompt": "string"},
+        ...  // Up to 1000 prompts
+    ]
+}
+
+Response:
+{
+    "responses": [
+        {
+            "status": "success|error",
+            "response": "string",
+            "error": "string"  // Only present for errors
+        },
+        ...  // Matches prompts array length
+    ]
+}
+```
+
+#### Configure Batch Size
+```json
+POST /api/v1/config/batch-size
+Request:
+{
+    "size": integer  // Must be positive
+}
+
+Response:
+{
+    "message": "string",
+    "batch_size": integer
+}
+```
+
+### Error Handling
+- Individual prompt failures don't affect other prompts
+- Batch failures are reported while continuing with remaining batches
+- Error responses maintain consistent format with single prompt endpoint
 
 ### Stage 3: Rate Limiting
 Add rate limiting:
