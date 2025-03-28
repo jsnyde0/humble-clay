@@ -1,5 +1,6 @@
+import asyncio
 import os
-from typing import Optional
+from typing import List, Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException
@@ -23,6 +24,16 @@ class PromptResponse(BaseModel):
     response: Optional[str] = None
     status: str = "success"
     error: Optional[str] = None
+
+
+class MultiplePromptsRequest(BaseModel):
+    prompts: List[PromptRequest] = Field(
+        ..., min_length=1, max_length=1000, description="List of prompts to process"
+    )
+
+
+class MultiplePromptsResponse(BaseModel):
+    responses: List[PromptResponse]
 
 
 async def process_with_llm(prompt: str) -> str:
@@ -60,6 +71,28 @@ async def process_prompt(request: PromptRequest):
     except Exception as e:
         # Raise HTTP exception instead of returning response
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/prompts", response_model=MultiplePromptsResponse)
+async def process_prompts(request: MultiplePromptsRequest):
+    """Process multiple prompts concurrently."""
+    # Process all prompts concurrently using asyncio.gather
+    responses = await asyncio.gather(
+        *[process_with_llm(prompt.prompt) for prompt in request.prompts],
+        return_exceptions=True,
+    )
+
+    # Convert responses to PromptResponse objects
+    prompt_responses = []
+    for response in responses:
+        if isinstance(response, Exception):
+            # Handle individual prompt failures
+            prompt_responses.append(PromptResponse(status="error", error=str(response)))
+        else:
+            # Handle successful responses
+            prompt_responses.append(PromptResponse(response=response, status="success"))
+
+    return MultiplePromptsResponse(responses=prompt_responses)
 
 
 class HealthResponse(BaseModel):
