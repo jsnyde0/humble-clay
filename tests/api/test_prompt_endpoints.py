@@ -204,3 +204,75 @@ def test_multiple_prompts_endpoint_integration(client: TestClient) -> None:
     assert "First" in data["responses"][0]["response"]
     assert "Second" in data["responses"][1]["response"]
     assert "Third" in data["responses"][2]["response"]
+
+
+@pytest.mark.asyncio
+async def test_batch_processing_order(client: TestClient, mocker: Any) -> None:
+    """Test that batch processing maintains prompt order."""
+    # Create more prompts than batch size
+    prompts = [{"prompt": f"Prompt {i}"} for i in range(15)]  # > BATCH_SIZE
+
+    # Mock responses that clearly show order
+    mock_responses = [f"Response {i}" for i in range(15)]
+    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm.side_effect = mock_responses
+
+    response = client.post("/api/v1/prompts", json={"prompts": prompts})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["responses"]) == 15
+
+    # Verify order is maintained
+    for i, resp in enumerate(data["responses"]):
+        assert resp["status"] == "success"
+        assert resp["response"] == f"Response {i}"
+
+
+@pytest.mark.asyncio
+async def test_batch_error_handling(client: TestClient, mocker: Any) -> None:
+    """Test that errors in one batch don't affect others."""
+    prompts = [{"prompt": f"Prompt {i}"} for i in range(15)]
+
+    # Mock some failures in different batches
+    def mock_response(prompt: str) -> str:
+        # Fix: Only fail exact matches for "Prompt 3" and "Prompt 12"
+        if prompt in ["Prompt 3", "Prompt 12"]:  # More precise condition
+            raise Exception("Test error")
+        return f"Success for {prompt}"
+
+    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm.side_effect = mock_response
+
+    response = client.post("/api/v1/prompts", json={"prompts": prompts})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["responses"]) == 15
+
+    # Verify specific failures and successes
+    assert data["responses"][3]["status"] == "error"
+    assert data["responses"][12]["status"] == "error"
+    assert data["responses"][0]["status"] == "success"
+    assert data["responses"][13]["status"] == "success"  # Should now pass
+
+
+@pytest.mark.llm
+async def test_batch_processing_integration(client: TestClient) -> None:
+    """Test batch processing with real LLM calls."""
+    # Create enough prompts to test batching
+    prompts = [
+        {"prompt": f"Say 'test{i}' if you can read this."}
+        for i in range(12)  # > BATCH_SIZE
+    ]
+
+    response = client.post("/api/v1/prompts", json={"prompts": prompts})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["responses"]) == 12
+
+    # Verify responses contain expected numbers
+    for i, resp in enumerate(data["responses"]):
+        assert resp["status"] == "success"
+        assert f"test{i}" in resp["response"].lower()
