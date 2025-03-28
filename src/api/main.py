@@ -73,26 +73,37 @@ async def process_prompt(request: PromptRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Constant for batch size
+BATCH_SIZE = 10
+
+
 @app.post("/api/v1/prompts", response_model=MultiplePromptsResponse)
 async def process_prompts(request: MultiplePromptsRequest):
-    """Process multiple prompts concurrently."""
-    # Process all prompts concurrently using asyncio.gather
-    responses = await asyncio.gather(
-        *[process_with_llm(prompt.prompt) for prompt in request.prompts],
-        return_exceptions=True,
-    )
+    """Process multiple prompts in batches."""
+    all_responses = []
 
-    # Convert responses to PromptResponse objects
-    prompt_responses = []
-    for response in responses:
-        if isinstance(response, Exception):
-            # Handle individual prompt failures
-            prompt_responses.append(PromptResponse(status="error", error=str(response)))
-        else:
-            # Handle successful responses
-            prompt_responses.append(PromptResponse(response=response, status="success"))
+    # Process prompts in batches
+    for i in range(0, len(request.prompts), BATCH_SIZE):
+        batch = request.prompts[i : i + BATCH_SIZE]
 
-    return MultiplePromptsResponse(responses=prompt_responses)
+        # Process batch concurrently
+        batch_responses = await asyncio.gather(
+            *[process_with_llm(prompt.prompt) for prompt in batch],
+            return_exceptions=True,
+        )
+
+        # Convert responses to PromptResponse objects
+        for response in batch_responses:
+            if isinstance(response, Exception):
+                all_responses.append(
+                    PromptResponse(status="error", error=str(response))
+                )
+            else:
+                all_responses.append(
+                    PromptResponse(response=response, status="success")
+                )
+
+    return MultiplePromptsResponse(responses=all_responses)
 
 
 class HealthResponse(BaseModel):
