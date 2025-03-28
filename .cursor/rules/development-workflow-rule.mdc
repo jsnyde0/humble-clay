@@ -71,7 +71,7 @@ actions:
 
       Task Content Guidelines:
       1. Requirements MUST:
-         - Describe HOW we're going to do something
+         - Describe HOW we're going to do something (without containing actual code)
          - Break down work into clear steps
          - Include specific testing needs
          - Link to specifications
