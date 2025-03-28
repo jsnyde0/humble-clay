@@ -68,6 +68,17 @@ actions:
       - Acceptance criteria section
       - Metadata (ID, start date, end date, state)
       - Learnings section for capturing implementation insights
+
+      Task Content Guidelines:
+      1. Requirements MUST:
+         - Describe WHAT needs to be done, not HOW
+         - Be implementation-agnostic
+         - Be measurable and verifiable
+      
+      2. Tasks MUST NOT contain:
+         - Implementation code
+         - Specific technical solutions
+         - Design decisions
       
       The task will be stored in `.cursor/tasks/` with an Open (📝) status
       and added to the task index in `.cursor/TASKS.md`
