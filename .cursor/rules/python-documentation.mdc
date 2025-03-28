@@ -1,9 +1,4 @@
 ---
-description: 
-globs: 
-alwaysApply: false
----
----
 description: Python documentation standards and practices
 globs: "**/*.py"
 alwaysApply: true
@@ -127,4 +122,4 @@ examples:
 metadata:
   priority: high
   version: 1.0
-</rule>
+</rule> 

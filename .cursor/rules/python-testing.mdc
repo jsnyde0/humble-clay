@@ -1,9 +1,4 @@
 ---
-description: 
-globs: 
-alwaysApply: false
----
- ---
 description: Python testing best practices and patterns
 globs: "**/*.py"
 alwaysApply: true
@@ -114,4 +109,4 @@ examples:
 metadata:
   priority: high
   version: 1.0
-</rule>
+</rule> 
