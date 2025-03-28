@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 class PromptRequest(BaseModel):
     """Single prompt request model."""
 
-    prompt: str = Field(..., min_length=1)
+    prompt: str = Field(..., min_length=0)
 
 
 class PromptResponse(BaseModel):

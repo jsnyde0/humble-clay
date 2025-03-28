@@ -16,7 +16,7 @@ async def process_with_llm(prompt: str) -> str:
             "https://openrouter.ai/api/v1/chat/completions",
             headers={
                 "Authorization": f"Bearer {api_key}",
-                "HTTP-Referer": "https://github.com/jsnyde0/humble-clay",  # Required by OpenRouter
+                "HTTP-Referer": "https://github.com/jsnyde0/humble-clay",
             },
             json={
                 "model": "google/gemini-pro",  # Gemini Flash 2.0 Lite
