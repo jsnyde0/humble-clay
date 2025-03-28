@@ -26,7 +26,7 @@ uv pip install -e .
 
 Start the development server:
 ```bash
-uv run uvicorn humble_clay.src.api.main:app --reload
+uv run uvicorn src.api.main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`
