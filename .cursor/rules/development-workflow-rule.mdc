@@ -480,4 +480,37 @@ examples:
 metadata:
   priority: high
   version: 1.0
+
+  - type: react
+    conditions:
+      - pattern: "spec create|create spec"
+    action: |
+      # Create a new specification
+      
+      Specification Content Guidelines:
+      1. Specifications MUST:
+         - Define WHAT the system should do
+         - Provide long-term reference documentation
+         - Focus on features and behaviors
+         - Define API contracts and interfaces
+         - Be product-focused
+         - Be implementation-agnostic
+         - Serve as stable documentation
+      
+      2. Specifications MUST NOT:
+         - Include implementation details
+         - Define HOW something will be built
+         - Include temporary development notes
+         - Mix implementation stages with requirements
+      
+      I'll create a specification with:
+      - Clear title and description
+      - System behavior requirements
+      - API contracts where applicable
+      - Acceptance criteria
+      - Implementation stages if needed
+      - Cross-references to related specifications
+      
+      The specification will be stored in `.cursor/specs/` and indexed
+      in `.cursor/SPECS.md`
 </rule> 
