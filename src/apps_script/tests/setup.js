@@ -1,3 +1,6 @@
+// Import Jest globals
+const { jest, beforeEach } = require('@jest/globals');
+
 // Mock Google Apps Script services
 global.SpreadsheetApp = {
   getActiveSheet: jest.fn(),
@@ -5,7 +8,10 @@ global.SpreadsheetApp = {
 };
 
 global.PropertiesService = {
-  getScriptProperties: jest.fn(),
+  getScriptProperties: jest.fn().mockReturnValue({
+    getProperty: jest.fn(),
+    setProperty: jest.fn(),
+  }),
 };
 
 global.HtmlService = {
@@ -36,10 +42,6 @@ class Range {
 
 // Setup default mock implementations
 SpreadsheetApp.getActiveSheet.mockReturnValue(new Sheet());
-PropertiesService.getScriptProperties.mockReturnValue({
-  getProperty: jest.fn(),
-  setProperty: jest.fn(),
-});
 
 // Helper to reset all mocks between tests
 beforeEach(() => {

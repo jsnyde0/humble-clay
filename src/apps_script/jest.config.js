@@ -1,10 +1,12 @@
 module.exports = {
   testEnvironment: 'node',
-  roots: ['<rootDir>/tests'],
-  testMatch: ['**/*.test.js'],
-  setupFiles: ['<rootDir>/tests/setup.js'],
-  collectCoverage: true,
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov'],
-  coveragePathIgnorePatterns: ['/node_modules/', '/tests/'],
+  transform: {
+    '^.+\\.js$': 'babel-jest',
+  },
+  setupFilesAfterEnv: ['./tests/setup.js'],
+  moduleFileExtensions: ['js'],
+  testMatch: ['**/tests/**/*.test.js'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(jest-)?@?react-native|@react-native-community|@react-navigation)',
+  ],
 }; 
