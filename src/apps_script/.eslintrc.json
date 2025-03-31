@@ -1,0 +1,27 @@
+{
+  "extends": ["eslint:recommended", "google"],
+  "plugins": ["googleappsscript"],
+  "env": {
+    "googleappsscript/googleappsscript": true,
+    "jest": true,
+    "es6": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2018
+  },
+  "rules": {
+    "max-len": ["error", { "code": 100 }],
+    "require-jsdoc": 0,
+    "valid-jsdoc": 0,
+    "camelcase": ["error", { "properties": "never" }],
+    "no-var": "error",
+    "semi": ["error", "always"],
+    "quotes": ["error", "single"]
+  },
+  "globals": {
+    "SpreadsheetApp": "readonly",
+    "PropertiesService": "readonly",
+    "HtmlService": "readonly",
+    "UrlFetchApp": "readonly"
+  }
+} 

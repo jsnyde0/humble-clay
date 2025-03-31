@@ -1,0 +1,19 @@
+{
+  "name": "humble-clay-apps-script",
+  "version": "1.0.0",
+  "description": "Google Apps Script integration for Humble Clay API",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint src/**/*.js tests/**/*.js",
+    "lint:fix": "eslint --fix src/**/*.js tests/**/*.js"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.78",
+    "@types/jest": "^29.5.12",
+    "eslint": "^8.57.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-googleappsscript": "^1.0.5",
+    "jest": "^29.7.0"
+  }
+} 
