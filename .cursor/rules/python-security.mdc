@@ -1,7 +1,7 @@
 ---
-description: Python security best practices and guidelines
-globs: "**/*.py"
-alwaysApply: true
+description: 
+globs: "**/*.py",*.py
+alwaysApply: false
 ---
 # Python Security Guide
 

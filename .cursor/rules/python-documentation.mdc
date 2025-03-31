@@ -1,7 +1,7 @@
 ---
-description: Python documentation standards and practices
-globs: "**/*.py"
-alwaysApply: true
+description: 
+globs: "**/*.py",*.py
+alwaysApply: false
 ---
 # Python Documentation Guide
 

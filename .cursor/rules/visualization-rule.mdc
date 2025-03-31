@@ -1,7 +1,7 @@
 ---
 description: Creates visual representations of project specifications, tasks, and knowledge
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # Visualization System
 

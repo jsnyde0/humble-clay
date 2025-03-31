@@ -1,7 +1,7 @@
 ---
-description: Python performance optimization guidelines
-globs: "**/*.py"
-alwaysApply: true
+description: 
+globs: "**/*.py",*.py
+alwaysApply: false
 ---
 # Python Performance Guide
 
