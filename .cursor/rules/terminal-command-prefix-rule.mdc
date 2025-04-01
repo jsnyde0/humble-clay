@@ -1,3 +1,8 @@
+---
+description: Apply this rule whenever running any terminal or shell or bash commands
+globs: 
+alwaysApply: false
+---
 # Rule: Enforce Consistent CWD for Terminal Commands
 
 # This rule ensures that terminal commands executed via the AI
