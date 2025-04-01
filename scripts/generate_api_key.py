@@ -14,4 +14,4 @@ if __name__ == "__main__":
     print("-----------------")
     print(api_key)
     print("\nAdd this to your .env file:")
-    print("API_KEY=" + api_key)
+    print("HUMBLE_CLAY_API_KEY=" + api_key)

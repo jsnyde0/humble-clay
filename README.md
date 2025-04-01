@@ -11,13 +11,13 @@ Create a `.env` file in the project root:
 OPENROUTER_API_KEY=your_openrouter_key
 
 # API Key for securing endpoints (generate using command below)
-API_KEY=your_api_key
+HUMBLE_CLAY_API_KEY=your_api_key
 ```
 
 ### 2. Generate API Key
 Run this Python command to generate a secure API key:
 ```bash
-python -c "import secrets; print(f'API_KEY={secrets.token_urlsafe(32)}')"
+python -c "import secrets; print(f'HUMBLE_CLAY_API_KEY={secrets.token_urlsafe(32)}')"
 ```
 Add the generated key to your `.env` file.
 
@@ -65,14 +65,14 @@ curl -X POST "http://localhost:8000/api/v1/prompt" \
 ### Google Apps Script Usage
 ```javascript
 function callHumbleClay(prompt) {
-  const API_KEY = 'your_api_key';  // Store in Script Properties
+  const HUMBLE_CLAY_API_KEY = 'your_api_key';  // Store in Script Properties
   const API_URL = 'http://your-api-url/api/v1/prompt';
   
   const options = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-API-Key': API_KEY
+      'X-API-Key': HUMBLE_CLAY_API_KEY
     },
     payload: JSON.stringify({
       prompt: prompt

@@ -23,9 +23,9 @@ async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
     if not api_key:
         raise HTTPException(status_code=403, detail="API key required")
 
-    if not os.getenv("API_KEY"):
+    if not os.getenv("HUMBLE_CLAY_API_KEY"):
         raise HTTPException(status_code=500, detail="API key not configured on server")
 
-    if api_key != os.getenv("API_KEY"):
+    if api_key != os.getenv("HUMBLE_CLAY_API_KEY"):
         raise HTTPException(status_code=403, detail="Invalid API key")
     return api_key

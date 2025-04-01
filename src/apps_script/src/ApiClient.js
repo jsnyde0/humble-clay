@@ -3,25 +3,186 @@
  */
 
 /**
+ * Default configuration for API requests
+ */
+const API_CONFIG = {
+  maxRetries: 3,
+  initialRetryDelay: 1000, // 1 second
+  maxBatchSize: 10, // Maximum items to process in parallel
+  endpoints: {
+    single: '/api/v1/prompt',
+    batch: '/api/v1/prompts'
+  }
+};
+
+/**
+ * Gets the API base URL from script properties
+ * @returns {string} The API base URL
+ * @throws {Error} If the API URL is not configured
+ */
+function getApiBaseUrl() {
+  const baseUrl = PropertiesService.getScriptProperties().getProperty('HUMBLE_CLAY_API_URL');
+  if (!baseUrl) {
+    throw new Error('API URL not configured. Please set up your API URL in the configuration.');
+  }
+  return baseUrl;
+}
+
+/**
+ * Sets the API base URL in script properties
+ * @param {string} url - The API base URL to store
+ */
+function setApiBaseUrl(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    throw new Error('Invalid API URL format');
+  }
+  PropertiesService.getScriptProperties().setProperty('HUMBLE_CLAY_API_URL', url);
+}
+
+/**
+ * Formats and validates the request payload
+ * @param {string} inputText - The text to process
+ * @param {Object} options - Additional options for the API call
+ * @returns {Object} Formatted payload
+ * @throws {Error} If payload validation fails
+ */
+function formatRequestPayload(inputText, options = {}) {
+  if (!inputText || typeof inputText !== 'string') {
+    throw new Error('Input text is required and must be a string');
+  }
+
+  const payload = {
+    input: inputText.trim(),
+    ...options
+  };
+
+  // Validate optional fields
+  if (options.systemPrompt && typeof options.systemPrompt !== 'string') {
+    throw new Error('System prompt must be a string');
+  }
+  if (options.outputStructure && typeof options.outputStructure !== 'string') {
+    throw new Error('Output structure must be a string');
+  }
+  if (options.extractField && typeof options.extractField !== 'string') {
+    throw new Error('Extract field must be a string');
+  }
+
+  return payload;
+}
+
+/**
+ * Handles API response parsing and validation
+ * @param {HTTPResponse} response - The response from UrlFetchApp
+ * @returns {Object} Parsed response data
+ * @throws {Error} If response is invalid
+ */
+function handleApiResponse(response) {
+  const responseCode = response.getResponseCode();
+  const responseText = response.getContentText();
+  
+  // Handle different response codes
+  switch (responseCode) {
+    case 200:
+      try {
+        const data = JSON.parse(responseText);
+        if (!data || !data.response) {
+          throw new Error('Invalid response format');
+        }
+        
+        // Handle batch response format
+        if (typeof data.response === 'object' && data.response.responses) {
+          return data; // Return full response object for batch processing
+        }
+        
+        // Handle single response format
+        if (typeof data.response === 'string') {
+          return { output: data.response }; // Transform to match our internal format
+        }
+        
+        throw new Error('Invalid response format');
+      } catch (e) {
+        throw new Error(`Failed to parse API response: ${e.message}`);
+      }
+    case 400:
+      throw new Error(`Bad request: ${responseText}`);
+    case 401:
+      throw new Error('Invalid API key. Please check your configuration.');
+    case 429:
+      throw new Error('Rate limit exceeded. Please try again later.');
+    case 500:
+      throw new Error('Internal server error. Please try again later.');
+    default:
+      throw new Error(`API request failed with status ${responseCode}: ${responseText}`);
+  }
+}
+
+/**
+ * Implements exponential backoff for retrying failed requests
+ * @param {function} operation - The operation to retry
+ * @param {Object} options - Retry options
+ * @returns {Promise<*>} The operation result
+ */
+function retryWithBackoff(operation, options = {}) {
+  const maxRetries = options.maxRetries || API_CONFIG.maxRetries;
+  const initialDelay = options.initialRetryDelay || API_CONFIG.initialRetryDelay;
+  
+  let attempt = 1;
+  
+  const execute = () => {
+    try {
+      return operation();
+    } catch (error) {
+      if (attempt >= maxRetries || !shouldRetry(error)) {
+        throw error;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = initialDelay * Math.pow(2, attempt - 1);
+      Utilities.sleep(delay);
+      
+      attempt++;
+      return execute();
+    }
+  };
+  
+  return execute();
+}
+
+/**
+ * Determines if an error should trigger a retry
+ * @param {Error} error - The error to check
+ * @returns {boolean} True if the error is retryable
+ */
+function shouldRetry(error) {
+  const retryableErrors = [
+    'Rate limit exceeded',
+    'Internal server error',
+    'network error',
+    'timeout'
+  ];
+  
+  return retryableErrors.some(msg => error.message.toLowerCase().includes(msg.toLowerCase()));
+}
+
+/**
  * Makes a request to the Humble Clay API
  * @param {string} inputText - The text to process
  * @param {Object} options - Additional options for the API call
- * @param {string} [options.systemPrompt] - Optional system prompt
- * @param {string} [options.outputStructure] - Optional output structure
- * @param {string} [options.extractField] - Optional field to extract
- * @returns {Promise<Object>} The API response
+ * @returns {Object} The API response
  * @throws {Error} If the API call fails
  */
 function makeApiRequest(inputText, options = {}) {
-  // Get API key from script properties
+  // Get API key and base URL from script properties
   const apiKey = PropertiesService.getScriptProperties().getProperty('HUMBLE_CLAY_API_KEY');
   if (!apiKey) {
     throw new Error('API key not configured. Please set up your API key in the configuration.');
   }
 
-  // Prepare request payload
+  const baseUrl = getApiBaseUrl();
+
+  // Format request payload to match FastAPI model
   const payload = {
-    input: inputText,
+    prompt: inputText.trim(), // Match FastAPI PromptRequest model
     ...options
   };
 
@@ -34,34 +195,13 @@ function makeApiRequest(inputText, options = {}) {
       'Accept': 'application/json'
     },
     payload: JSON.stringify(payload),
-    muteHttpExceptions: true // Handle HTTP errors ourselves
+    muteHttpExceptions: true
   };
 
-  try {
-    // Make the API request
-    const response = UrlFetchApp.fetch('https://api.humbleclay.com/v1/process', requestOptions);
-    const responseCode = response.getResponseCode();
-    const responseText = response.getContentText();
-
-    // Handle different response codes
-    switch (responseCode) {
-      case 200:
-        return JSON.parse(responseText);
-      case 401:
-        throw new Error('Invalid API key. Please check your configuration.');
-      case 429:
-        throw new Error('Rate limit exceeded. Please try again later.');
-      default:
-        throw new Error(`API request failed with status ${responseCode}: ${responseText}`);
-    }
-  } catch (error) {
-    // Pass through specific error messages
-    if (error.message.includes('Invalid API key') || 
-        error.message.includes('Rate limit exceeded')) {
-      throw error;
-    }
-    throw new Error(`API request failed: ${error.message}`);
-  }
+  return retryWithBackoff(() => {
+    const response = UrlFetchApp.fetch(`${baseUrl}${API_CONFIG.endpoints.single}`, requestOptions);
+    return handleApiResponse(response);
+  }, options);
 }
 
 /**
@@ -75,37 +215,119 @@ function validateApiKey(apiKey) {
   }
   
   // Add specific validation rules based on Humble Clay API key format
-  // This is a placeholder - update with actual API key format requirements
   const apiKeyPattern = /^hc_[a-zA-Z0-9]{32}$/;
   return apiKeyPattern.test(apiKey);
 }
 
 /**
- * Processes a range of cells using the Humble Clay API
- * @param {string[][]} values - The values from the input range
+ * Processes a batch of values in parallel
+ * @param {string[]} batch - Array of values to process
  * @param {Object} options - Processing options
- * @returns {Promise<string[][]>} Processed values
+ * @returns {Promise<Array>} Processed values
+ */
+function processBatch(batch, options = {}) {
+  if (!Array.isArray(batch) || batch.length === 0) {
+    throw new Error('Batch cannot be empty');
+  }
+
+  if (batch.length > API_CONFIG.maxBatchSize) {
+    throw new Error(`Batch size cannot exceed ${API_CONFIG.maxBatchSize} items`);
+  }
+
+  // Get API key and base URL from script properties
+  const apiKey = PropertiesService.getScriptProperties().getProperty('HUMBLE_CLAY_API_KEY');
+  if (!apiKey) {
+    throw new Error('API key not configured. Please set up your API key in the configuration.');
+  }
+
+  const baseUrl = getApiBaseUrl();
+
+  // Format batch request to match FastAPI MultiplePromptsRequest model
+  const payload = {
+    prompts: batch.map(value => ({
+      prompt: value.toString().trim()
+    }))
+  };
+
+  // Prepare request options
+  const requestOptions = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Accept': 'application/json'
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  return retryWithBackoff(() => {
+    const response = UrlFetchApp.fetch(`${baseUrl}${API_CONFIG.endpoints.batch}`, requestOptions);
+    const result = handleApiResponse(response);
+    
+    // Extract responses from the result
+    if (!result.response || !Array.isArray(result.response.responses)) {
+      throw new Error('Invalid batch response format');
+    }
+    
+    // Map responses to either successful results or error messages
+    return result.response.responses.map(r => {
+      if (r.response) return r.response;
+      return `Error: ${r.error || 'Unknown error'}`;
+    });
+  }, options);
+}
+
+/**
+ * Processes a range of values using the API
+ * @param {Array<Array<string>>} values - 2D array of values from the range
+ * @param {Object} options - Processing options
+ * @returns {Array<Array<string>>} Processed values
  */
 function processRangeWithApi(values, options = {}) {
-  // Process each cell value through the API
-  const processedValues = values.map(row => {
-    return row.map(cell => {
-      if (!cell || cell.toString().trim() === '') {
-        return ['']; // Keep empty cells empty
-      }
+  // Validate input is a 2D array
+  if (!Array.isArray(values)) {
+    throw new Error('Values array cannot be empty');
+  }
+  
+  // Ensure all rows are arrays
+  if (!values.every(row => Array.isArray(row))) {
+    throw new Error('Values array cannot be empty');
+  }
+  
+  // Check for empty array
+  if (values.length === 0 || values.every(row => row.length === 0)) {
+    throw new Error('Values array cannot be empty');
+  }
 
-      try {
-        const response = makeApiRequest(cell.toString(), options);
-        return [response.output || '']; // Assuming API returns { output: string }
-      } catch (error) {
-        // Log error but continue processing
-        console.error(`Error processing cell: ${error.message}`);
-        return [`Error: ${error.message}`];
-      }
-    });
-  });
+  // Flatten 2D array and filter out empty cells
+  const flatValues = values.flat().filter(value => value && value.toString().trim());
+  
+  if (flatValues.length === 0) {
+    return values; // Return original array if no non-empty values
+  }
 
-  return processedValues;
+  // Process in batches
+  const results = [];
+  for (let i = 0; i < flatValues.length; i += API_CONFIG.maxBatchSize) {
+    const batch = flatValues.slice(i, i + API_CONFIG.maxBatchSize);
+    try {
+      const batchResults = processBatch(batch, options);
+      results.push(...batchResults);
+    } catch (error) {
+      // On error, add error messages for each value in the batch
+      results.push(...batch.map(() => `Error: ${error.message}`));
+    }
+  }
+
+  // Map results back to original 2D structure
+  let resultIndex = 0;
+  return values.map(row => 
+    row.map(cell => {
+      if (!cell || !cell.toString().trim()) return cell;
+      return results[resultIndex++] || 'Error: Processing failed';
+    })
+  );
 }
 
 // Export functions for testing
@@ -113,6 +335,11 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     makeApiRequest,
     validateApiKey,
-    processRangeWithApi
+    processRangeWithApi,
+    formatRequestPayload,
+    handleApiResponse,
+    API_CONFIG,
+    getApiBaseUrl,
+    setApiBaseUrl
   };
 } 

@@ -38,6 +38,7 @@ describe('UI', () => {
     test('creates menu with correct items', () => {
       const mockMenu = {
         addItem: jest.fn().mockReturnThis(),
+        addSeparator: jest.fn().mockReturnThis(),
         addToUi: jest.fn()
       };
 
@@ -53,7 +54,10 @@ describe('UI', () => {
 
       // Verify menu creation
       expect(mockUi.createMenu).toHaveBeenCalledWith('Range Processor');
-      expect(mockMenu.addItem).toHaveBeenCalledWith('Open Sidebar', 'UI.showSidebar');
+      expect(mockMenu.addItem).toHaveBeenCalledWith('Open Sidebar', 'showSidebar');
+      expect(mockMenu.addSeparator).toHaveBeenCalled();
+      expect(mockMenu.addItem).toHaveBeenCalledWith('Configure API', 'showApiConfig');
+      expect(mockMenu.addItem).toHaveBeenCalledWith('Validate API Configuration', 'validateApiConfig');
       expect(mockMenu.addToUi).toHaveBeenCalled();
     });
   });

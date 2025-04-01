@@ -7,7 +7,7 @@ Implement minimal, secure API authentication using HTTPS and API key verificatio
 
 ### 1. API Key Management
 - [ ] Generate secure random API key (32+ bytes)
-- [ ] Store API key in environment variable (API_KEY)
+- [ ] Store API key in environment variable (HUMBLE_CLAY_API_KEY)
 - [ ] Provide script/command to generate new secure key
 - [ ] Document key generation and setup process
 

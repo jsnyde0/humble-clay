@@ -24,13 +24,13 @@ def api_key() -> str:
 @pytest.fixture(autouse=True)
 def setup_api_key(api_key: str) -> None:
     """Set up API key in environment."""
-    old_key = os.environ.get("API_KEY")
-    os.environ["API_KEY"] = api_key
+    old_key = os.environ.get("HUMBLE_CLAY_API_KEY")
+    os.environ["HUMBLE_CLAY_API_KEY"] = api_key
     yield
     if old_key:
-        os.environ["API_KEY"] = old_key
+        os.environ["HUMBLE_CLAY_API_KEY"] = old_key
     else:
-        del os.environ["API_KEY"]
+        del os.environ["HUMBLE_CLAY_API_KEY"]
 
 
 def test_missing_api_key(client: TestClient) -> None:

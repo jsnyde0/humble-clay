@@ -89,6 +89,9 @@ describe('Code.js', () => {
     });
 
     test('handles validation errors', () => {
+      // Silence expected error logging for this test
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      
       // Mock validation failure
       RangeUtils.validateRange.mockImplementation(() => {
         throw new Error('Invalid range format');
@@ -100,9 +103,20 @@ describe('Code.js', () => {
         success: false,
         message: 'Invalid range format'
       });
+      
+      // Verify error was logged
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error processing range:',
+        expect.any(Error)
+      );
+      
+      consoleSpy.mockRestore();
     });
 
     test('handles missing sheet error', () => {
+      // Silence expected error logging for this test
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      
       // Mock no active sheet
       global.SpreadsheetApp.getActiveSheet.mockReturnValue(null);
 
@@ -112,9 +126,20 @@ describe('Code.js', () => {
         success: false,
         message: 'No active sheet found'
       });
+      
+      // Verify error was logged
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error processing range:',
+        expect.any(Error)
+      );
+      
+      consoleSpy.mockRestore();
     });
 
     test('handles empty range error', () => {
+      // Silence expected error logging for this test
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      
       // Mock empty range values
       const mockRange = {
         getValues: jest.fn().mockReturnValue([])
@@ -132,6 +157,14 @@ describe('Code.js', () => {
         success: false,
         message: 'No values found in the input range'
       });
+      
+      // Verify error was logged
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error processing range:',
+        expect.any(Error)
+      );
+      
+      consoleSpy.mockRestore();
     });
   });
 }); 
