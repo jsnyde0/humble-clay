@@ -1,5 +1,5 @@
 const { jest, describe, test, expect } = require('@jest/globals');
-const RangeUtils = require('../RangeUtils');
+const RangeUtils = require('../src/RangeUtils');
 
 describe('RangeUtils', () => {
   describe('validateRange', () => {

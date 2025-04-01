@@ -1,11 +1,24 @@
 // Import Jest globals
 const { jest, beforeEach } = require('@jest/globals');
 
-// Mock Google Apps Script services
+// Mock Google Apps Script global objects and functions
 global.SpreadsheetApp = {
+  getUi: jest.fn().mockReturnValue({
+    createMenu: jest.fn().mockReturnValue({
+      addItem: jest.fn().mockReturnThis(),
+      addToUi: jest.fn()
+    }),
+    showSidebar: jest.fn()
+  }),
   getActiveSheet: jest.fn(),
-  getUi: jest.fn(),
   getActiveSpreadsheet: jest.fn()
+};
+
+global.HtmlService = {
+  createHtmlOutputFromFile: jest.fn().mockReturnValue({
+    setTitle: jest.fn().mockReturnThis(),
+    setWidth: jest.fn().mockReturnThis()
+  })
 };
 
 global.PropertiesService = {
@@ -13,12 +26,6 @@ global.PropertiesService = {
     getProperty: jest.fn(),
     setProperty: jest.fn(),
   }),
-};
-
-global.HtmlService = {
-  createHtmlOutput: jest.fn(),
-  createTemplate: jest.fn(),
-  createHtmlOutputFromFile: jest.fn()
 };
 
 // Mock sheet class
