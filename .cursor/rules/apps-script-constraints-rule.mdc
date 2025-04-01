@@ -1,0 +1,50 @@
+---
+description: 
+globs: src/apps_script/*,src/apps_script/**/*.js
+alwaysApply: false
+---
+ ---
+type: Always
+description: Reminds about Google Apps Script (GAS) constraints when working in the apps_script directory.
+globs: src/apps_script/**
+---
+# Google Apps Script Development Constraints
+
+Rule reminding about the specific environment and limitations of Google Apps Script (GAS).
+
+<rule>
+name: apps_script_constraints
+filters:
+  - type: file_change
+    pattern: "src/apps_script/.*\.(js|gs|html)$"
+  - type: file_create
+    pattern: "src/apps_script/.*\.(js|gs|html)$"
+
+actions:
+  - type: suggest
+    message: |
+      ### Google Apps Script (GAS) Constraints Reminder
+
+      You are working within the `src/apps_script/` directory. Remember these key points about the GAS environment:
+
+      1.  **No Standard Modules:**
+          *   You **cannot** use Node.js (`require`/`module.exports`) or ES Modules (`import`/`export`) to structure code *within* this project.
+          *   All `.gs` and `.js` files share **one global scope**.
+
+      2.  **Global Scope & Access:**
+          *   Functions and global variables defined in one file (e.g., `Config.js`) are directly accessible by their name in any other file (e.g., `Code.js`) without any import statement.
+          *   Define functions globally.
+
+      3.  **GAS Services:**
+          *   Use built-in GAS services directly (e.g., `SpreadsheetApp`, `UrlFetchApp`, `PropertiesService`, `Logger`). These are global objects provided by the environment.
+
+      4.  **File Order:**
+          *   While GAS usually parses function definitions first, the execution order of top-level code *can* sometimes depend on file order if not structured carefully (e.g., avoid top-level code that relies on functions defined in other files before those functions are likely parsed). It's best to rely on function calls triggered by events or specific entry points (`onOpen`, menu items, etc.).
+
+      5.  **Testing:**
+          *   When writing tests (e.g., using Jest), you will need to manually mock the global GAS services (`SpreadsheetApp`, etc.) as they don't exist outside the GAS execution environment.
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>
