@@ -3,6 +3,8 @@
 // Import dependencies
 const { validateRange, validateOutputColumn, mapInputRangeToOutput } = require('./RangeUtils');
 const UI = require('./UI');
+const Config = require('./Config');
+const ApiClient = require('./ApiClient');
 
 /**
  * Runs when the add-on is installed or the document is opened
@@ -18,6 +20,67 @@ function onOpen() {
  */
 function showSidebar() {
   UI.showSidebar();
+}
+
+/**
+ * Shows the API configuration dialog
+ * This function is called from the add-on menu
+ */
+function showApiConfig() {
+  try {
+    // Get current configuration
+    const apiKey = Config.getApiKey() || '';
+    const apiUrl = ApiClient.getApiBaseUrl() || '';
+
+    // Show configuration dialog
+    const result = UI.showApiConfigDialog(apiKey, apiUrl);
+    
+    if (result && result.buttonClicked === 'OK') {
+      // Update configuration if OK was clicked
+      if (result.apiKey) {
+        Config.setApiKey(result.apiKey);
+      }
+      if (result.apiUrl) {
+        ApiClient.setApiBaseUrl(result.apiUrl);
+      }
+      UI.showMessage('API configuration updated successfully');
+    }
+  } catch (error) {
+    console.error('Error configuring API:', error);
+    UI.showError(error.message || 'Failed to update API configuration');
+  }
+}
+
+/**
+ * Validates the current API configuration
+ * This function is called from the add-on menu
+ */
+function validateApiConfig() {
+  try {
+    // Check API key
+    const apiKey = Config.getApiKey();
+    if (!apiKey) {
+      throw new Error('API key not configured');
+    }
+    Config.validateApiKey(apiKey);
+
+    // Check API URL
+    const apiUrl = ApiClient.getApiBaseUrl();
+    if (!apiUrl) {
+      throw new Error('API URL not configured');
+    }
+    
+    // Test API connection
+    const testResult = ApiClient.makeApiRequest('test', { systemPrompt: 'test' });
+    if (!testResult || !testResult.output) {
+      throw new Error('API test request failed');
+    }
+
+    UI.showMessage('API configuration is valid');
+  } catch (error) {
+    console.error('API validation failed:', error);
+    UI.showError(error.message || 'API configuration is invalid');
+  }
 }
 
 /**
@@ -91,6 +154,8 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     onOpen,
     showSidebar,
-    processRange
+    processRange,
+    showApiConfig,
+    validateApiConfig
   };
 } 
