@@ -1,17 +1,14 @@
-// Import dependencies
-const UI = require('./UI');
-const RangeUtils = require('./RangeUtils');
-
-/**
- * Main entry point for the Google Sheets Range Processor Add-on
- */
+// Code.js - Main entry point for the Google Sheets Range Processor Add-on
 
 /**
  * Runs when the add-on is installed or the document is opened
  * Creates the add-on menu in the Google Sheets UI
  */
 function onOpen() {
-  UI.createMenu();
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Range Processor')
+    .addItem('Open Sidebar', 'showSidebar')
+    .addToUi();
 }
 
 /**
@@ -19,7 +16,11 @@ function onOpen() {
  * This function is called from the add-on menu
  */
 function showSidebar() {
-  UI.showSidebar();
+  const html = HtmlService.createHtmlOutputFromFile('Sidebar')
+    .setTitle('Range Processor')
+    .setWidth(300);
+  
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 /**
@@ -31,8 +32,8 @@ function showSidebar() {
 function processRange(inputRange, outputColumn) {
   try {
     // Validate inputs
-    RangeUtils.validateRange(inputRange);
-    RangeUtils.validateOutputColumn(outputColumn);
+    validateRange(inputRange);
+    validateOutputColumn(outputColumn);
 
     // Get the active sheet
     const sheet = SpreadsheetApp.getActiveSheet();
@@ -59,7 +60,7 @@ function processRange(inputRange, outputColumn) {
     // -----------------------------------
 
     // Map input range to output range
-    const outputRange = RangeUtils.mapInputRangeToOutput(inputRange, outputColumn);
+    const outputRange = mapInputRangeToOutput(inputRange, outputColumn);
     
     // Get the output range
     const targetRange = sheet.getRange(outputRange);
@@ -68,7 +69,7 @@ function processRange(inputRange, outputColumn) {
     }
 
     // Set the transformed values in the output range
-    targetRange.setValues(transformedValues); // Use transformed values
+    targetRange.setValues(transformedValues);
 
     // Return success
     return {
@@ -86,13 +87,4 @@ function processRange(inputRange, outputColumn) {
       message: error.message || 'An unknown error occurred'
     };
   }
-}
-
-// Make functions available to the UI
-if (typeof module !== 'undefined') {
-  module.exports = {
-    onOpen,
-    showSidebar,
-    processRange
-  };
 } 
