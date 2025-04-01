@@ -1,0 +1,40 @@
+---
+description: Apply this rule for any shell or terminal command
+globs: 
+alwaysApply: false
+---
+ # Rule: Enforce Consistent CWD for Terminal Commands
+
+# This rule ensures that terminal commands executed via the AI
+# always run from the project root directory (/home/jsnyde0/Documents/code/humble-clay/)
+# to prevent path errors due to inconsistent shell states.
+
+<rule>
+name: enforce_terminal_cwd
+filters:
+  # Filter for when the run_terminal_cmd tool is about to be used.
+  # This relies on the AI Assistant (me) recognizing the intent or the
+  # Cursor rule system intercepting the tool call proposal.
+  - type: tool_call
+    pattern: "run_terminal_cmd"
+
+actions:
+  # React by providing instructions to the AI Assistant (me).
+  - type: react
+    action: |
+      # Prepend cd to project root before executing terminal command
+
+      **RULE TRIGGERED: enforce_terminal_cwd**
+
+      Before executing the proposed terminal command, I MUST ensure it is prefixed with:
+      `cd /home/jsnyde0/Documents/code/humble-clay/ && `
+
+      **Reason:** To guarantee command execution within the intended directory and ensure reliable path resolution, preventing errors observed previously.
+
+      I will now modify the proposed command to include this prefix if it's missing.
+
+metadata:
+  # Critical priority to ensure it's checked before every relevant command.
+  priority: critical
+  version: 1.0
+</rule> 
