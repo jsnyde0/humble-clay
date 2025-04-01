@@ -1,9 +1,4 @@
----
-description: Apply this rule for any shell or terminal command
-globs: 
-alwaysApply: false
----
- # Rule: Enforce Consistent CWD for Terminal Commands
+# Rule: Enforce Consistent CWD for Terminal Commands
 
 # This rule ensures that terminal commands executed via the AI
 # always run from the project root directory (/home/jsnyde0/Documents/code/humble-clay/)

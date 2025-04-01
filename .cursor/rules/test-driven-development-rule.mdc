@@ -1,9 +1,10 @@
+# Test-Driven Development Rule
+
 ---
-description: 
-globs: 
-alwaysApply: true
+type: Always
+description: Enforces test-driven development practices and prevents implementation before tests
+globs: src/**, tests/**
 ---
- # Test-Driven Development Rule
 
 Rule for enforcing test-driven development practices and preventing implementation before tests.
 
