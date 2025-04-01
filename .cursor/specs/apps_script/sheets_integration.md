@@ -31,7 +31,7 @@ The system must support:
 ### 4. Custom Functions
 The system must provide spreadsheet functions for:
 - Direct LLM generation in cells
-- Structured data extraction
+- Structured data extraction (See: [Structured Data Extraction Spec](./structured_extraction_spec.md))
 - Field extraction from JSON responses
 
 ## API Contracts
@@ -57,7 +57,7 @@ The system must provide spreadsheet functions for:
 =GENERATE_WITH_LLM(prompt, [systemPrompt], [outputStructure], [extractField])
 
 // Structured Generation
-=GENERATE_STRUCTURED_LLM(prompt, structureDefinition)
+=GENERATE_STRUCTURED_LLM(prompt_text_or_cell, json_schema_string_or_cell)
 
 // Field Extraction
 =EXTRACT_LLM_FIELD(jsonString, fieldPath)
@@ -132,7 +132,7 @@ The system must provide spreadsheet functions for:
 
 ### Stage 3: Enhanced Features
 - Add system prompt support
-- Add structured output handling
+- Add structured output handling (See: [Structured Data Extraction Spec](./structured_extraction_spec.md))
 - Add field extraction
 - Implement custom functions
 - Add progress tracking
