@@ -85,22 +85,25 @@ function handleApiResponse(response) {
     case 200:
       try {
         const data = JSON.parse(responseText);
-        if (!data || !data.response) {
-          throw new Error('Invalid response format');
+        
+        // Handle BATCH response format: { responses: [...] }
+        if (data && Array.isArray(data.responses)) {
+          return data; // Return the full object with the responses array
         }
         
-        // Handle batch response format
-        if (typeof data.response === 'object' && data.response.responses) {
-          return data; // Return full response object for batch processing
+        // Handle SINGLE response format: { response: "..." }
+        if (data && typeof data.response === 'string') {
+          // Transform to a consistent structure for internal use if needed, 
+          // although makeApiRequest might not use this structure directly anymore.
+          // Let's return the raw single response object for now.
+          return data; 
         }
         
-        // Handle single response format
-        if (typeof data.response === 'string') {
-          return { output: data.response }; // Transform to match our internal format
-        }
-        
-        throw new Error('Invalid response format');
+        // If neither format matches, it's invalid
+        Logger.log(`[handleApiResponse] Error: Unexpected 200 OK format: ${responseText}`);
+        throw new Error('Invalid response format received from API');
       } catch (e) {
+        Logger.log(`[handleApiResponse] Error parsing JSON: ${e.message}. Response Text: ${responseText}`);
         throw new Error(`Failed to parse API response: ${e.message}`);
       }
     case 400:
