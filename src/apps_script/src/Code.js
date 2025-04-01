@@ -1,17 +1,11 @@
-// Code.js - Main entry point for the Google Sheets Range Processor Add-on
-
-// Import dependencies
-const { validateRange, validateOutputColumn, mapInputRangeToOutput } = require('./RangeUtils');
-const UI = require('./UI');
-const Config = require('./Config');
-const ApiClient = require('./ApiClient');
+// Code.js - Main entry point for the Google Sheets Add-on
 
 /**
  * Runs when the add-on is installed or the document is opened
  * Creates the add-on menu in the Google Sheets UI
  */
 function onOpen() {
-  UI.createMenu();
+  createMenu();
 }
 
 /**
@@ -19,35 +13,35 @@ function onOpen() {
  * This function is called from the add-on menu
  */
 function showSidebar() {
-  UI.showSidebar();
+  showSidebarUI();
 }
 
 /**
  * Shows the API configuration dialog
  * This function is called from the add-on menu
  */
-function showApiConfig() {
+function showConfigDialog() {
   try {
     // Get current configuration
-    const apiKey = Config.getApiKey() || '';
-    const apiUrl = ApiClient.getApiBaseUrl() || '';
+    const apiKey = getApiKey() || '';
+    const apiUrl = getApiBaseUrl() || '';
 
     // Show configuration dialog
-    const result = UI.showApiConfigDialog(apiKey, apiUrl);
+    const result = showApiConfigDialog(apiKey, apiUrl);
     
     if (result && result.buttonClicked === 'OK') {
       // Update configuration if OK was clicked
       if (result.apiKey) {
-        Config.setApiKey(result.apiKey);
+        setApiKey(result.apiKey);
       }
       if (result.apiUrl) {
-        ApiClient.setApiBaseUrl(result.apiUrl);
+        setApiBaseUrl(result.apiUrl);
       }
-      UI.showMessage('API configuration updated successfully');
+      showMessage('API configuration updated successfully');
     }
   } catch (error) {
     console.error('Error configuring API:', error);
-    UI.showError(error.message || 'Failed to update API configuration');
+    showError(error.message || 'Failed to update API configuration');
   }
 }
 
@@ -58,28 +52,28 @@ function showApiConfig() {
 function validateApiConfig() {
   try {
     // Check API key
-    const apiKey = Config.getApiKey();
+    const apiKey = getApiKey();
     if (!apiKey) {
       throw new Error('API key not configured');
     }
-    Config.validateApiKey(apiKey);
+    validateApiKey(apiKey);
 
     // Check API URL
-    const apiUrl = ApiClient.getApiBaseUrl();
+    const apiUrl = getApiBaseUrl();
     if (!apiUrl) {
       throw new Error('API URL not configured');
     }
     
     // Test API connection
-    const testResult = ApiClient.makeApiRequest('test', { systemPrompt: 'test' });
+    const testResult = makeApiRequest('test', { systemPrompt: 'test' });
     if (!testResult || !testResult.output) {
       throw new Error('API test request failed');
     }
 
-    UI.showMessage('API configuration is valid');
+    showMessage('API configuration is valid');
   } catch (error) {
     console.error('API validation failed:', error);
-    UI.showError(error.message || 'API configuration is invalid');
+    showError(error.message || 'API configuration is invalid');
   }
 }
 
@@ -113,11 +107,8 @@ function processRange(inputRange, outputColumn) {
       throw new Error('No values found in the input range');
     }
 
-    // --- Stage 1: Echo Transformation ---
-    // In future stages, this is where the API call and processing will happen.
-    // For now, we just echo the input values.
-    const transformedValues = values; // Simple echo
-    // -----------------------------------
+    // Process the values using the API
+    const processedValues = processRangeWithApi(values);
 
     // Map input range to output range
     const outputRange = mapInputRangeToOutput(inputRange, outputColumn);
@@ -129,7 +120,7 @@ function processRange(inputRange, outputColumn) {
     }
 
     // Set the transformed values in the output range
-    targetRange.setValues(transformedValues);
+    targetRange.setValues(processedValues);
 
     // Return success
     return {
@@ -149,13 +140,13 @@ function processRange(inputRange, outputColumn) {
   }
 }
 
-// Export functions for testing
+// Only export for tests
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     onOpen,
     showSidebar,
     processRange,
-    showApiConfig,
+    showConfigDialog,
     validateApiConfig
   };
 } 

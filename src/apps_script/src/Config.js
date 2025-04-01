@@ -12,10 +12,9 @@ function validateApiKey(apiKey) {
     return false;
   }
   
-  // Add specific validation rules based on Humble Clay API key format
-  // This is a placeholder - update with actual API key format requirements
-  const apiKeyPattern = /^hc_[a-zA-Z0-9]{32}$/;
-  return apiKeyPattern.test(apiKey);
+  // Basic validation: just ensure it's a non-empty string with reasonable length
+  // and contains only valid characters
+  return apiKey.length >= 32 && /^[a-zA-Z0-9_\-*#()]+$/.test(apiKey);
 }
 
 /**
@@ -42,33 +41,67 @@ function setApiKey(apiKey) {
 }
 
 /**
+ * Gets the API base URL from script properties
+ * @returns {string} The API base URL
+ */
+function getApiBaseUrl() {
+  return PropertiesService.getScriptProperties().getProperty('HUMBLE_CLAY_API_URL');
+}
+
+/**
+ * Sets the API base URL in script properties
+ * @param {string} url - The API base URL to store
+ */
+function setApiBaseUrl(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    throw new Error('Invalid API URL format');
+  }
+  PropertiesService.getScriptProperties().setProperty('HUMBLE_CLAY_API_URL', url);
+}
+
+/**
  * Shows the API configuration dialog
  */
 function showConfigDialog() {
+  // Get current values
+  const currentApiKey = getApiKey() || '';
+  const currentApiUrl = getApiBaseUrl() || '';
+
   const html = HtmlService.createHtmlOutput(`
     <style>
       body { font-family: Arial, sans-serif; margin: 20px; }
       .form-group { margin-bottom: 15px; }
       label { display: block; margin-bottom: 5px; }
-      input[type="text"] { width: 100%; padding: 8px; margin-bottom: 10px; }
+      input { width: 100%; padding: 8px; margin-bottom: 10px; }
+      .hint { font-size: 0.8em; color: #666; margin-top: 3px; }
       .error { color: red; margin-top: 5px; display: none; }
       .success { color: green; margin-top: 5px; display: none; }
     </style>
-    <form id="apiKeyForm">
+    <form id="configForm">
       <div class="form-group">
         <label for="apiKey">Humble Clay API Key:</label>
-        <input type="text" id="apiKey" name="apiKey" required 
-               placeholder="Enter your API key (format: hc_...)">
-        <div id="error" class="error"></div>
-        <div id="success" class="success"></div>
+        <input type="password" id="apiKey" name="apiKey" required 
+               value="${currentApiKey}"
+               placeholder="Enter your API key">
+        <div class="hint">Your Humble Clay API key</div>
       </div>
-      <button type="submit">Save API Key</button>
+      <div class="form-group">
+        <label for="apiUrl">API URL:</label>
+        <input type="text" id="apiUrl" name="apiUrl" required 
+               value="${currentApiUrl}"
+               placeholder="e.g., http://localhost:8000">
+        <div class="hint">The base URL of your Humble Clay API</div>
+      </div>
+      <div id="error" class="error"></div>
+      <div id="success" class="success"></div>
+      <button type="submit">Save Configuration</button>
     </form>
     <script>
       // Handle form submission
-      document.getElementById('apiKeyForm').onsubmit = function(e) {
+      document.getElementById('configForm').onsubmit = function(e) {
         e.preventDefault();
         const apiKey = document.getElementById('apiKey').value;
+        const apiUrl = document.getElementById('apiUrl').value;
         const errorDiv = document.getElementById('error');
         const successDiv = document.getElementById('success');
         
@@ -79,7 +112,7 @@ function showConfigDialog() {
         // Call the server-side function
         google.script.run
           .withSuccessHandler(function() {
-            successDiv.textContent = 'API key saved successfully!';
+            successDiv.textContent = 'Configuration saved successfully!';
             successDiv.style.display = 'block';
             // Close the dialog after a short delay
             setTimeout(function() {
@@ -87,27 +120,41 @@ function showConfigDialog() {
             }, 2000);
           })
           .withFailureHandler(function(error) {
-            errorDiv.textContent = error.message || 'Failed to save API key';
+            errorDiv.textContent = error.message || 'Failed to save configuration';
             errorDiv.style.display = 'block';
           })
-          .setApiKey(apiKey);
+          .saveConfiguration(apiKey, apiUrl);
       };
     </script>
   `)
   .setWidth(400)
-  .setHeight(250)
-  .setTitle('Configure API Key');
+  .setHeight(300)
+  .setTitle('Configure Humble Clay API');
 
-  SpreadsheetApp.getUi().showModalDialog(html, 'Configure API Key');
+  SpreadsheetApp.getUi().showModalDialog(html, 'Configure API');
 }
 
 /**
- * Checks if the API key is configured
- * @returns {boolean} True if the API key is configured
+ * Saves both API key and URL configuration
+ * @param {string} apiKey - The API key to save
+ * @param {string} apiUrl - The API URL to save
+ */
+function saveConfiguration(apiKey, apiUrl) {
+  // Validate and save API key
+  setApiKey(apiKey);
+  
+  // Validate and save API URL
+  setApiBaseUrl(apiUrl);
+}
+
+/**
+ * Checks if the configuration is complete
+ * @returns {boolean} True if both API key and URL are configured
  */
 function isConfigured() {
   const apiKey = getApiKey();
-  return apiKey !== null && apiKey !== '';
+  const apiUrl = getApiBaseUrl();
+  return apiKey !== null && apiKey !== '' && apiUrl !== null && apiUrl !== '';
 }
 
 /**
@@ -116,6 +163,7 @@ function isConfigured() {
  */
 function validateConfig() {
   const apiKey = getApiKey();
+  const apiUrl = getApiBaseUrl();
   
   if (!apiKey) {
     return {
@@ -131,18 +179,28 @@ function validateConfig() {
     };
   }
 
+  if (!apiUrl) {
+    return {
+      isValid: false,
+      message: 'API URL not configured'
+    };
+  }
+
   return {
     isValid: true,
     message: 'Configuration is valid'
   };
 }
 
-// Export functions for testing
+// Only export for tests
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     getApiKey,
     setApiKey,
+    getApiBaseUrl,
+    setApiBaseUrl,
     showConfigDialog,
+    saveConfiguration,
     isConfigured,
     validateConfig,
     validateApiKey

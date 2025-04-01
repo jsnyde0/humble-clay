@@ -25,7 +25,7 @@ Google Apps Script integration for the Humble Clay API.
 4. Save and reload your sheet
 
 ### Using the Add-on
-1. Click the "Range Processor" menu item
+1. Click the "Humble Clay" menu item
 2. Enter an input range (e.g., "A1:A10")
 3. Enter an output column letter (e.g., "C")
 4. Click "Generate Output"

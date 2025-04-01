@@ -178,12 +178,11 @@ function makeApiRequest(inputText, options = {}) {
     throw new Error('API key not configured. Please set up your API key in the configuration.');
   }
 
-  const baseUrl = getApiBaseUrl();
+  const baseUrl = getApiBaseUrl().replace(/\/$/, ''); // Remove trailing slash if present
 
-  // Format request payload to match FastAPI model
+  // Format request payload to match FastAPI PromptRequest model
   const payload = {
-    prompt: inputText.trim(), // Match FastAPI PromptRequest model
-    ...options
+    prompt: inputText.trim() // Match FastAPI PromptRequest model
   };
 
   // Prepare request options
@@ -191,7 +190,7 @@ function makeApiRequest(inputText, options = {}) {
     method: 'post',
     contentType: 'application/json',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'X-API-Key': apiKey, // Use X-API-Key header
       'Accept': 'application/json'
     },
     payload: JSON.stringify(payload),
@@ -240,7 +239,7 @@ function processBatch(batch, options = {}) {
     throw new Error('API key not configured. Please set up your API key in the configuration.');
   }
 
-  const baseUrl = getApiBaseUrl();
+  const baseUrl = getApiBaseUrl().replace(/\/$/, ''); // Remove trailing slash if present
 
   // Format batch request to match FastAPI MultiplePromptsRequest model
   const payload = {
@@ -254,7 +253,7 @@ function processBatch(batch, options = {}) {
     method: 'post',
     contentType: 'application/json',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'X-API-Key': apiKey, // Use X-API-Key header
       'Accept': 'application/json'
     },
     payload: JSON.stringify(payload),
@@ -262,17 +261,29 @@ function processBatch(batch, options = {}) {
   };
 
   return retryWithBackoff(() => {
-    const response = UrlFetchApp.fetch(`${baseUrl}${API_CONFIG.endpoints.batch}`, requestOptions);
-    const result = handleApiResponse(response);
+    const fullUrl = `${baseUrl}${API_CONFIG.endpoints.batch}`;
+    Logger.log(`[processBatch] Fetching URL: ${fullUrl}`);
+    Logger.log(`[processBatch] Request Options: ${JSON.stringify(requestOptions, null, 2)}`);
+    
+    const response = UrlFetchApp.fetch(fullUrl, requestOptions);
+    
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+    Logger.log(`[processBatch] Response Code: ${responseCode}`);
+    Logger.log(`[processBatch] Response Text: ${responseText}`);
+
+    // Original handleApiResponse logic expects the raw response object
+    const result = handleApiResponse(response); 
     
     // Extract responses from the result
-    if (!result.response || !Array.isArray(result.response.responses)) {
+    if (!result.responses) {
+      Logger.log('[processBatch] Error: Invalid batch response format received.');
       throw new Error('Invalid batch response format');
     }
     
     // Map responses to either successful results or error messages
-    return result.response.responses.map(r => {
-      if (r.response) return r.response;
+    return result.responses.map(r => {
+      if (r.status === 'success' && r.response) return r.response;
       return `Error: ${r.error || 'Unknown error'}`;
     });
   }, options);

@@ -26,7 +26,7 @@ describe('UI', () => {
 
       // Verify HTML creation
       expect(HtmlService.createHtmlOutputFromFile).toHaveBeenCalledWith('Sidebar');
-      expect(mockHtmlOutput.setTitle).toHaveBeenCalledWith('Range Processor');
+      expect(mockHtmlOutput.setTitle).toHaveBeenCalledWith('Humble Clay');
       expect(mockHtmlOutput.setWidth).toHaveBeenCalledWith(300);
 
       // Verify sidebar display
@@ -53,7 +53,7 @@ describe('UI', () => {
       UI.createMenu();
 
       // Verify menu creation
-      expect(mockUi.createMenu).toHaveBeenCalledWith('Range Processor');
+      expect(mockUi.createMenu).toHaveBeenCalledWith('Humble Clay');
       expect(mockMenu.addItem).toHaveBeenCalledWith('Open Sidebar', 'showSidebar');
       expect(mockMenu.addSeparator).toHaveBeenCalled();
       expect(mockMenu.addItem).toHaveBeenCalledWith('Configure API', 'showApiConfig');
