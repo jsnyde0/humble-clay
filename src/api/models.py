@@ -10,6 +10,9 @@ class PromptRequest(BaseModel):
 
     prompt: str = Field(..., min_length=0)
 
+    class Config:
+        extra = "forbid"
+
 
 class PromptResponse(BaseModel):
     """Single prompt response model."""

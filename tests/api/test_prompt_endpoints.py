@@ -26,14 +26,19 @@ def test_prompt_endpoint_accepts_valid_input(
     mock_llm.assert_called_once_with("Test prompt")
 
 
-def test_prompt_endpoint_rejects_empty_prompt(
-    client: TestClient, auth_headers: Dict[str, str]
+def test_prompt_endpoint_accepts_empty_prompt(
+    client: TestClient, mocker: Any, auth_headers: Dict[str, str]
 ) -> None:
-    """Test that prompt endpoint rejects empty prompt with validation error."""
+    """Test that prompt endpoint accepts an empty prompt."""
+    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm.return_value = "Processed empty prompt"
+
     response = client.post("/api/v1/prompt", json={"prompt": ""}, headers=auth_headers)
-    assert response.status_code == 422
+
+    assert response.status_code == 200  # Expect OK now
     data = response.json()
-    assert "detail" in data
+    assert data.get("response") == "Processed empty prompt"
+    mock_llm.assert_called_once_with("")  # Verify LLM called with empty string
 
 
 def test_prompt_endpoint_requires_prompt_field(
@@ -284,3 +289,112 @@ def test_batch_processing_integration(
     for i, resp in enumerate(data["responses"]):
         assert resp["status"] == "success"
         assert f"test{i}" in resp["response"].lower()
+
+
+# --- Tests for new optional fields in PromptRequest ---
+
+
+@pytest.fixture
+def sample_schema() -> dict:
+    """Provides a sample JSON schema for testing."""
+    return {
+        "name": "test_schema",
+        "schema": {
+            "type": "object",
+            "properties": {"output": {"type": "string"}},
+            "required": ["output"],
+        },
+    }
+
+
+def test_prompt_endpoint_accepts_optional_fields(
+    client: TestClient, mocker: Any, auth_headers: Dict[str, str], sample_schema: dict
+) -> None:
+    """Test that prompt endpoint accepts optional response_format and extract_field_path."""
+    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    # Simulate backend returning the schema/path for verification,
+    # though real logic will use them internally
+    mock_llm.return_value = "Processed with schema and path"
+
+    payload = {
+        "prompt": "Test prompt",
+        "response_format": {"type": "json_schema", "json_schema": sample_schema},
+        "extract_field_path": "output",
+    }
+    response = client.post("/api/v1/prompt", json=payload, headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["response"] == "Processed with schema and path"
+    # In a real scenario, we might need more complex mocking/assertions
+    # to verify the schema/path were actually *used* by the mocked llm call,
+    # perhaps by checking arguments passed to process_with_llm if we modify it.
+    mock_llm.assert_called_once()
+
+
+def test_prompt_endpoint_works_without_optional_fields(
+    client: TestClient, mocker: Any, auth_headers: Dict[str, str]
+) -> None:
+    """Test that prompt endpoint works normally without the optional fields."""
+    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm.return_value = "Standard response"
+
+    payload = {"prompt": "Test prompt without extras"}
+    response = client.post("/api/v1/prompt", json=payload, headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["response"] == "Standard response"
+    mock_llm.assert_called_once_with("Test prompt without extras")
+
+
+def test_multiple_prompts_accepts_optional_fields(
+    client: TestClient, mocker: Any, auth_headers: Dict[str, str], sample_schema: dict
+) -> None:
+    """Test that multiple prompts endpoint accepts optional fields per prompt."""
+    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm.side_effect = ["Response 1", "Response 2 with schema/path"]
+
+    payload = {
+        "prompts": [
+            {"prompt": "Prompt 1"},  # Without optional fields
+            {
+                "prompt": "Prompt 2",  # With optional fields
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": sample_schema,
+                },
+                "extract_field_path": "output",
+            },
+        ]
+    }
+    response = client.post("/api/v1/prompts", json=payload, headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["responses"]) == 2
+    assert data["responses"][0]["response"] == "Response 1"
+    assert data["responses"][1]["response"] == "Response 2 with schema/path"
+    assert mock_llm.call_count == 2
+    # Again, more complex mocking might be needed to verify args passed to mock_llm
+
+
+def test_multiple_prompts_works_without_optional_fields(
+    client: TestClient, mocker: Any, auth_headers: Dict[str, str]
+) -> None:
+    """Test that multiple prompts endpoint works without optional fields."""
+    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm.side_effect = ["Resp A", "Resp B"]
+
+    payload = {"prompts": [{"prompt": "Prompt A"}, {"prompt": "Prompt B"}]}
+    response = client.post("/api/v1/prompts", json=payload, headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["responses"]) == 2
+    assert data["responses"][0]["response"] == "Resp A"
+    assert data["responses"][1]["response"] == "Resp B"
+    assert mock_llm.call_count == 2
+
+
+# --- End tests for new optional fields ---
