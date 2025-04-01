@@ -19,7 +19,8 @@ class PromptResponse(BaseModel):
     """Single prompt response model."""
 
     status: str = "success"
-    response: str | None = None
+    # Allow specific scalar types or None for extracted values or full JSON string
+    response: str | int | float | bool | None = None
     error: str | None = None
 
 
