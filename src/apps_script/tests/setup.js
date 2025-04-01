@@ -5,6 +5,7 @@ const { jest, beforeEach } = require('@jest/globals');
 global.SpreadsheetApp = {
   getActiveSheet: jest.fn(),
   getUi: jest.fn(),
+  getActiveSpreadsheet: jest.fn()
 };
 
 global.PropertiesService = {
@@ -17,6 +18,7 @@ global.PropertiesService = {
 global.HtmlService = {
   createHtmlOutput: jest.fn(),
   createTemplate: jest.fn(),
+  createHtmlOutputFromFile: jest.fn()
 };
 
 // Mock sheet class
