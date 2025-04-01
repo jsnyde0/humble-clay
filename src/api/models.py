@@ -1,17 +1,18 @@
 """Pydantic models for API requests and responses."""
 
-from typing import List
+from typing import Any, Dict, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PromptRequest(BaseModel):
     """Single prompt request model."""
 
     prompt: str = Field(..., min_length=0)
+    response_format: Dict[str, Any] | None = Field(default=None)
+    extract_field_path: str | None = Field(default=None)
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class PromptResponse(BaseModel):

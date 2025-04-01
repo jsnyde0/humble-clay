@@ -27,7 +27,7 @@ Dependencies: TASK-2024-04-01-01 ✅
 ## Implementation Steps
 
 1.  **Backend API Changes:**
-    *   [ ] Modify `PromptRequest` and `MultiplePromptsRequest` models to include optional `response_format` (containing schema) and `extract_field_path` fields.
+    *   [x] Modify `PromptRequest` and `MultiplePromptsRequest` models to include optional `response_format` (containing schema) and `extract_field_path` fields. (2024-04-01)
     *   [ ] Modify `PromptResponse` and `MultiplePromptsResponse` models to handle flexible `response` type (string, number, boolean, potentially null) and standard `error` messages.
     *   [ ] Implement schema enforcement logic in the LLM interaction (e.g., using `instructor` or specific LLM features).
     *   [ ] Implement field path extraction logic (to be run after successful JSON generation).
