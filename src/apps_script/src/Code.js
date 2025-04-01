@@ -1,14 +1,15 @@
 // Code.js - Main entry point for the Google Sheets Range Processor Add-on
 
+// Import dependencies
+const { validateRange, validateOutputColumn, mapInputRangeToOutput } = require('./RangeUtils');
+const UI = require('./UI');
+
 /**
  * Runs when the add-on is installed or the document is opened
  * Creates the add-on menu in the Google Sheets UI
  */
 function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('Range Processor')
-    .addItem('Open Sidebar', 'showSidebar')
-    .addToUi();
+  UI.createMenu();
 }
 
 /**
@@ -16,11 +17,7 @@ function onOpen() {
  * This function is called from the add-on menu
  */
 function showSidebar() {
-  const html = HtmlService.createHtmlOutputFromFile('Sidebar')
-    .setTitle('Range Processor')
-    .setWidth(300);
-  
-  SpreadsheetApp.getUi().showSidebar(html);
+  UI.showSidebar();
 }
 
 /**
@@ -87,4 +84,13 @@ function processRange(inputRange, outputColumn) {
       message: error.message || 'An unknown error occurred'
     };
   }
+}
+
+// Export functions for testing
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    onOpen,
+    showSidebar,
+    processRange
+  };
 } 
