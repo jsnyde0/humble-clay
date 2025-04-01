@@ -52,6 +52,12 @@ function processRange(inputRange, outputColumn) {
       throw new Error('No values found in the input range');
     }
 
+    // --- Stage 1: Echo Transformation ---
+    // In future stages, this is where the API call and processing will happen.
+    // For now, we just echo the input values.
+    const transformedValues = values; // Simple echo
+    // -----------------------------------
+
     // Map input range to output range
     const outputRange = RangeUtils.mapInputRangeToOutput(inputRange, outputColumn);
     
@@ -61,9 +67,8 @@ function processRange(inputRange, outputColumn) {
       throw new Error('Could not create output range');
     }
 
-    // For Stage 1, we'll implement a simple echo transformation
-    // Just copy the values as-is to the target range
-    targetRange.setValues(values);
+    // Set the transformed values in the output range
+    targetRange.setValues(transformedValues); // Use transformed values
 
     // Return success
     return {
