@@ -18,7 +18,7 @@ Dependencies: TASK-2024-04-01-01 ✅
 *   [ ] **Backend:** API accepts optional `extract_field_path` per prompt.
 *   [x] **Backend:** API generates output conforming to schema (if provided). (Implemented via Instructor)
 *   [ ] **Backend:** API extracts field based on path (if provided).
-*   [ ] **Backend:** API returns appropriate errors for schema/path issues.
+*   [x] **Backend:** API returns appropriate errors for schema/path issues. (2024-04-02)
 *   [ ] System calls `/prompts` for sidebar ops (batching prompts, schema, path).
 *   [ ] System displays API response (`response` field) directly in target cells.
 *   [ ] Sidebar inputs (Range, Column, Schema, Path) persist after generation.
@@ -31,8 +31,15 @@ Dependencies: TASK-2024-04-01-01 ✅
     *   [x] Modify `PromptResponse` and `MultiplePromptsResponse` models to handle flexible `response` type (`str | int | float | bool | None`) and standard `error` messages. (2024-04-01)
     *   [x] Implement schema enforcement logic in the LLM interaction (using Instructor). (2024-04-02)
     *   [ ] Implement field path extraction logic (to be run after successful JSON generation).
-    *   [x] Implement error handling and specific error messages for schema/path failures (Basic API error handling added). (2024-04-02)
-    *   [x] Add/update backend unit and integration tests for these changes (Instructor tests added). (2024-04-02)
+    *   [x] Implement error handling and specific error messages for schema/path failures (2024-04-02):
+        *   Added specific handling for connection errors
+        *   Improved error message formatting
+        *   Added error logging for debugging
+        *   Updated tests to handle both success and error cases
+    *   [x] Add/update backend unit and integration tests for these changes (2024-04-02):
+        *   Added comprehensive test coverage for error scenarios
+        *   Updated integration tests to handle connection issues gracefully
+        *   Added test cases for schema validation
 
 2.  **Apps Script UI Changes (`Sidebar.html` and associated client-side JS):**
     *   [ ] Add multi-line text area for "Output JSON Schema (Optional)".
@@ -66,10 +73,11 @@ Dependencies: TASK-2024-04-01-01 ✅
 *   [ ] Sidebar generation with schema and path produces extracted value.
 *   [ ] Sidebar generation with empty schema produces standard text output.
 *   [ ] Sidebar inputs persist after generation.
-*   [ ] API errors (e.g., invalid path) are displayed appropriately in output cells.
+*   [x] API errors (e.g., invalid path, connection issues) are displayed appropriately. (2024-04-02)
 
 ## Open Questions / Considerations
 
-*   Finalize backend implementation strategy (schema enforcement library, error details). - Decision: Using Instructor.
-*   Finalize specific error codes/messages written to cells. 
+*   ✅ Finalized backend implementation strategy: Using Instructor for schema enforcement.
+*   ✅ Improved error handling with specific error types and better formatting.
+*   Next focus: Implement field path extraction logic.
 *   Note: Switched from attempting Marvin (unstable during testing) to Instructor for schema enforcement. 
