@@ -42,12 +42,45 @@ def test_prompt_response_accepts_boolean():
 
 
 # This test ensures invalid types are still rejected
+def test_prompt_response_accepts_structured_data():
+    """Test PromptResponse accepts dictionaries and lists (structured data) in response field."""
+    # Test with dictionary
+    resp_dict = PromptResponse(status="success", response={"name": "John", "age": 30})
+    assert resp_dict.response == {"name": "John", "age": 30}
+
+    # Test with list
+    resp_list = PromptResponse(status="success", response=["item1", "item2"])
+    assert resp_list.response == ["item1", "item2"]
+
+    # Test with nested structures
+    resp_nested = PromptResponse(
+        status="success",
+        response={"user": {"name": "John", "skills": ["Python", "JavaScript"]}},
+    )
+    assert resp_nested.response["user"]["skills"] == ["Python", "JavaScript"]
+
+
 def test_prompt_response_rejects_invalid_types():
-    """Test PromptResponse rejects unsupported types like list/dict."""
+    """Test PromptResponse rejects truly unsupported types."""
+
+    class TestClass:
+        pass
+
+    # Class object should be rejected
     with pytest.raises(ValidationError):
-        PromptResponse(status="success", response=["a", "list"])
+        PromptResponse(status="success", response=TestClass)
+
+    # Function object should be rejected
     with pytest.raises(ValidationError):
-        PromptResponse(status="success", response={"a": "dict"})
+        PromptResponse(status="success", response=lambda x: x)
+
+    # Complex number should be rejected (not JSON serializable)
+    with pytest.raises(ValidationError):
+        PromptResponse(status="success", response=complex(1, 2))
+
+    # Custom object should be rejected
+    with pytest.raises(ValidationError):
+        PromptResponse(status="success", response=TestClass())
 
 
 # --- End tests for PromptResponse model flexibility ---

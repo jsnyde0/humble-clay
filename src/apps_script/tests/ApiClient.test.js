@@ -266,6 +266,90 @@ describe('ApiClient', () => {
   });
 
   describe('makeApiRequest', () => {
+    beforeEach(() => {
+      resetAllMocks();
+      // Mock UrlFetchApp.fetch
+      global.UrlFetchApp = {
+        fetch: jest.fn().mockReturnValue({
+          getResponseCode: jest.fn().mockReturnValue(200),
+          getContentText: jest.fn().mockReturnValue('{"response":"test"}')
+        })
+      };
+      // Mock PropertiesService
+      global.PropertiesService = {
+        getScriptProperties: jest.fn().mockReturnValue({
+          getProperty: jest.fn((key) => {
+            if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_12345678901234567890123456789012';
+            if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
+            return null;
+          })
+        })
+      };
+    });
+
+    test('correctly formats JSON schema for the API', () => {
+      // Test schema
+      const testSchema = {
+        "type": "object",
+        "properties": {
+          "age": { "type": "number" }
+        },
+        "required": ["age"]
+      };
+      
+      // Test input
+      const input = "I'm 35 years old";
+      
+      // Call makeApiRequest with schema
+      makeApiRequest(input, { responseFormat: testSchema });
+      
+      // Get the call arguments from UrlFetchApp.fetch
+      const fetchCall = UrlFetchApp.fetch.mock.calls[0];
+      expect(fetchCall[0]).toBe('https://api.example.com/api/v1/prompt');
+      
+      // Parse the payload to verify format
+      const payload = JSON.parse(fetchCall[1].payload);
+      
+      // Verify the payload structure
+      expect(payload).toHaveProperty('prompt', input.trim());
+      expect(payload).toHaveProperty('response_format');
+      expect(payload.response_format).toHaveProperty('type', 'json_schema');
+      expect(payload.response_format).toHaveProperty('json_schema');
+      expect(payload.response_format.json_schema).toHaveProperty('name', 'DynamicSchema');
+      expect(payload.response_format.json_schema).toHaveProperty('schema');
+      expect(payload.response_format.json_schema.schema).toEqual(testSchema);
+    });
+    
+    test('correctly formats extractFieldPath for the API', () => {
+      // Test schema and field path
+      const testSchema = {
+        "type": "object",
+        "properties": {
+          "age": { "type": "number" }
+        },
+        "required": ["age"]
+      };
+      const fieldPath = "age";
+      
+      // Test input
+      const input = "I'm 35 years old";
+      
+      // Call makeApiRequest with schema and field path
+      makeApiRequest(input, { 
+        responseFormat: testSchema,
+        extractFieldPath: fieldPath 
+      });
+      
+      // Get the call arguments from UrlFetchApp.fetch
+      const fetchCall = UrlFetchApp.fetch.mock.calls[0];
+      
+      // Parse the payload to verify format
+      const payload = JSON.parse(fetchCall[1].payload);
+      
+      // Verify the field path is included
+      expect(payload).toHaveProperty('extract_field_path', fieldPath);
+    });
+
     it('should make successful API request', () => {
       // Setup
       const testInput = 'Test input';
@@ -296,41 +380,45 @@ describe('ApiClient', () => {
       );
     });
 
-    it('should include schema and field path in request payload', () => {
+    test('should include schema and field path in request payload', () => {
       // Setup
-      const testInput = 'Test input';
-      const testSchema = { type: 'object', properties: { name: { type: 'string' } } };
-      const testFieldPath = 'name';
-      const expectedOutput = { response: 'Test response' };
+      resetAllMocks();
       
-      // Configure PropertiesService mock
-      PropertiesService.getScriptProperties().getProperty.mockImplementation(key => {
+      // Set up test data
+      const schemaObj = { type: 'object', properties: { name: { type: 'string' }}};
+      const expectedSchema = {
+        type: "json_schema",
+        json_schema: {
+          name: "DynamicSchema",
+          schema: schemaObj
+        }
+      };
+      
+      const expectedPayload = {
+        prompt: 'Test input',
+        response_format: expectedSchema,
+        extract_field_path: 'name'
+      };
+      
+      // Set up mocks
+      UrlFetchApp.fetch.mockReturnValue({
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue('{"response":"test"}')
+      });
+      
+      PropertiesService.getScriptProperties().getProperty.mockImplementation((key) => {
         if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_1234567890abcdef1234567890abcdef';
         if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
         return null;
       });
       
-      UrlFetchApp.fetch.mockReturnValue({
-        getResponseCode: jest.fn().mockReturnValue(200),
-        getContentText: jest.fn().mockReturnValue(JSON.stringify(expectedOutput))
-      });
-      
-      // Execute
-      const result = makeApiRequest(testInput, {
-        responseFormat: testSchema,
-        extractFieldPath: testFieldPath
+      // Call function with schema and field path
+      makeApiRequest('Test input', { 
+        responseFormat: schemaObj, 
+        extractFieldPath: 'name' 
       });
       
       // Verify
-      expect(result).toEqual(expectedOutput);
-      
-      // Check if payload includes both schema and field path
-      const expectedPayload = {
-        prompt: 'Test input',
-        response_format: testSchema,
-        extract_field_path: testFieldPath
-      };
-      
       expect(UrlFetchApp.fetch).toHaveBeenCalledWith(
         'https://api.example.com/api/v1/prompt',
         expect.objectContaining({
@@ -423,59 +511,128 @@ describe('ApiClient', () => {
   });
 
   describe('processBatch', () => {
-    it('should process batch with schema and field path options', () => {
-      // Setup
-      const batch = ['input1', 'input2'];
-      const testSchema = { type: 'object', properties: { name: { type: 'string' } } };
-      const testFieldPath = 'name';
-      const mockResponse = {
-        getResponseCode: jest.fn().mockReturnValue(200),
-        getContentText: jest.fn().mockReturnValue(JSON.stringify({
-          responses: [
-            { status: 'success', response: 'result1' },
-            { status: 'success', response: 'result2' }
-          ]
-        }))
+    beforeEach(() => {
+      resetAllMocks();
+      // Mock UrlFetchApp.fetch
+      global.UrlFetchApp = {
+        fetch: jest.fn().mockReturnValue({
+          getResponseCode: jest.fn().mockReturnValue(200),
+          getContentText: jest.fn().mockReturnValue('{"responses":[{"status":"success","response":"test"}]}')
+        })
+      };
+      // Mock PropertiesService
+      global.PropertiesService = {
+        getScriptProperties: jest.fn().mockReturnValue({
+          getProperty: jest.fn((key) => {
+            if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_12345678901234567890123456789012';
+            if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
+            return null;
+          })
+        })
+      };
+      // Mock Logger
+      global.Logger = {
+        log: jest.fn()
+      };
+    });
+
+    test('correctly formats schema in batch requests', () => {
+      // Test schema
+      const testSchema = {
+        "type": "object",
+        "properties": {
+          "age": { "type": "number" }
+        },
+        "required": ["age"]
       };
       
-      // Configure PropertiesService mock
-      PropertiesService.getScriptProperties().getProperty.mockImplementation(key => {
+      // Test input batch
+      const batch = ["I'm 35 years old", "She is 28 years old"];
+      
+      // Call processBatch with schema
+      processBatch(batch, { responseFormat: testSchema });
+      
+      // Get the call arguments from UrlFetchApp.fetch
+      const fetchCall = UrlFetchApp.fetch.mock.calls[0];
+      expect(fetchCall[0]).toBe('https://api.example.com/api/v1/prompts');
+      
+      // Parse the payload to verify format
+      const payload = JSON.parse(fetchCall[1].payload);
+      
+      // Verify the payload structure
+      expect(payload).toHaveProperty('prompts');
+      expect(Array.isArray(payload.prompts)).toBe(true);
+      expect(payload.prompts.length).toBe(2);
+      
+      // Check both prompt requests have proper schema format
+      payload.prompts.forEach(promptRequest => {
+        expect(promptRequest).toHaveProperty('response_format');
+        expect(promptRequest.response_format).toHaveProperty('type', 'json_schema');
+        expect(promptRequest.response_format).toHaveProperty('json_schema');
+        expect(promptRequest.response_format.json_schema).toHaveProperty('name', 'DynamicSchema');
+        expect(promptRequest.response_format.json_schema).toHaveProperty('schema');
+        expect(promptRequest.response_format.json_schema.schema).toEqual(testSchema);
+      });
+    });
+
+    test('should process batch with schema and field path options', () => {
+      // Test setup
+      resetAllMocks();
+      
+      // Set up schema and options
+      const schemaObj = { type: 'object', properties: { name: { type: 'string' }}};
+      const options = {
+        responseFormat: schemaObj,
+        extractFieldPath: 'name'
+      };
+      
+      // Expected wrapped schema format
+      const expectedSchema = {
+        type: "json_schema",
+        json_schema: {
+          name: "DynamicSchema",
+          schema: schemaObj
+        }
+      };
+      
+      // Expected prompts array
+      const expectedPrompts = [
+        {
+          prompt: 'input1',
+          response_format: expectedSchema,
+          extract_field_path: 'name'
+        },
+        {
+          prompt: 'input2',
+          response_format: expectedSchema,
+          extract_field_path: 'name'
+        }
+      ];
+      
+      // Mock services
+      UrlFetchApp.fetch.mockReturnValue({
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue('{"responses":[{"status":"success","response":"test1"},{"status":"success","response":"test2"}]}')
+      });
+      
+      PropertiesService.getScriptProperties().getProperty.mockImplementation((key) => {
         if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_1234567890abcdef1234567890abcdef';
         if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
         return null;
       });
       
-      UrlFetchApp.fetch.mockReturnValue(mockResponse);
+      // Call the batch function
+      const result = processBatch(['input1', 'input2'], options);
       
-      // Execute
-      const result = processBatch(batch, {
-        responseFormat: testSchema,
-        extractFieldPath: testFieldPath
-      });
-      
-      // Verify results
-      expect(result).toEqual(['result1', 'result2']);
-      
-      // Verify API call with options
-      const expectedPrompts = [
-        {
-          prompt: 'input1',
-          response_format: testSchema,
-          extract_field_path: testFieldPath
-        },
-        {
-          prompt: 'input2',
-          response_format: testSchema,
-          extract_field_path: testFieldPath
-        }
-      ];
-      
+      // Verify
       expect(UrlFetchApp.fetch).toHaveBeenCalledWith(
         'https://api.example.com/api/v1/prompts',
         expect.objectContaining({
           payload: JSON.stringify({ prompts: expectedPrompts })
         })
       );
+      
+      expect(result).toEqual(['test1', 'test2']);
     });
   });
 }); 

@@ -19,8 +19,8 @@ class PromptResponse(BaseModel):
     """Single prompt response model."""
 
     status: str = "success"
-    # Allow specific scalar types or None for extracted values or full JSON string
-    response: str | int | float | bool | None = None
+    # Allow structured data (dict, list) as well as specific scalar types or None
+    response: Dict[str, Any] | List[Any] | str | int | float | bool | None = None
     error: str | None = None
 
 

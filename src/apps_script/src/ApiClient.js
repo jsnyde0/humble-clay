@@ -220,7 +220,14 @@ function makeApiRequest(inputText, options = {}) {
 
   // Add responseFormat if provided in options
   if (options.responseFormat) {
-    payload.response_format = options.responseFormat;
+    // Format the schema according to the API's expected structure
+    payload.response_format = {
+      type: "json_schema",
+      json_schema: {
+        name: "DynamicSchema",
+        schema: options.responseFormat
+      }
+    };
   }
 
   // Add extractFieldPath if provided in options
@@ -293,7 +300,14 @@ function processBatch(batch, options = {}) {
       
       // Add responseFormat if provided in options
       if (options.responseFormat) {
-        promptRequest.response_format = options.responseFormat;
+        // Format the schema according to the API's expected structure
+        promptRequest.response_format = {
+          type: "json_schema",
+          json_schema: {
+            name: "DynamicSchema",
+            schema: options.responseFormat
+          }
+        };
       }
       
       // Add extractFieldPath if provided in options
@@ -340,7 +354,7 @@ function processBatch(batch, options = {}) {
     
     // Map responses to either successful results or error messages
     return result.responses.map(r => {
-      if (r.status === 'success' && r.response) return r.response;
+      if (r.status === 'success' && r.response !== undefined) return r.response;
       return `Error: ${r.error || 'Unknown error'}`;
     });
   }, options);
