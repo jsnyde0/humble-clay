@@ -6,11 +6,16 @@ from typing import Dict
 import pytest
 from fastapi.testclient import TestClient
 
+from src.api.main import app
+
 
 def test_prompt_endpoint_handles_invalid_api_key(
     client: TestClient, auth_headers: Dict[str, str]
 ) -> None:
     """Test that prompt endpoint handles invalid API key correctly."""
+    # Reset any dependency overrides from previous tests
+    app.dependency_overrides = {}
+
     headers = auth_headers.copy()
     headers["X-API-Key"] = "wrong_key"
 
@@ -27,6 +32,9 @@ def test_prompt_endpoint_integrates_with_llm(
     client: TestClient, auth_headers: Dict[str, str]
 ) -> None:
     """Test that prompt endpoint successfully integrates with LLM service."""
+    # Reset any dependency overrides from previous tests
+    app.dependency_overrides = {}
+
     api_key = os.getenv("OPENROUTER_API_KEY")
     assert api_key, "OPENROUTER_API_KEY environment variable not set"
 

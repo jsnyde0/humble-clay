@@ -141,7 +141,8 @@ async def test_batch_error_handling(
     """Test that errors in one batch don't affect others."""
     prompts = [{"prompt": f"Prompt {i}"} for i in range(15)]
 
-    def mock_response(prompt: str) -> str:
+    # Updated to handle response_model parameter
+    async def mock_response(prompt: str, response_model=None, model=None) -> str:
         if prompt in ["Prompt 3", "Prompt 12"]:
             raise Exception("Test error")
         return f"Success for {prompt}"
@@ -199,8 +200,19 @@ def test_multiple_prompts_accepts_optional_fields(
     client: TestClient, mocker: Any, auth_headers: Dict[str, str], sample_schema: dict
 ) -> None:
     """Test that multiple prompts endpoint accepts optional fields per prompt."""
+    # Setup mock with different responses for different calls
     mock_llm = mocker.patch("src.api.main.process_with_llm")
-    mock_llm.side_effect = ["Response 1", "Response 2 with schema/path"]
+
+    # Define a dynamic side effect function to handle both structured and unstructured outputs
+    async def mock_llm_response(prompt, response_model=None, model=None):
+        if response_model:
+            # Return a model instance with the output field
+            return response_model(output="Response 2 with schema/path")
+        else:
+            # Return a simple string for unstructured response
+            return "Response 1"
+
+    mock_llm.side_effect = mock_llm_response
 
     payload = {
         "prompts": [

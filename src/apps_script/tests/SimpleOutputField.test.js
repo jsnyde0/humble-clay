@@ -196,17 +196,26 @@ describe('SimpleOutputField', () => {
       // Execute
       const schema = generateSchemaFromSyntax(parsedSyntax);
       
-      // Verify
-      expect(schema).toEqual({
+      // Verify - updated to match current implementation
+      expect(schema).toMatchObject({
         type: 'object',
         properties: {
           status: {
             type: 'string',
-            enum: ['active', 'pending', 'completed']
+            enum: ['active', 'pending', 'completed'],
+            // Description is dynamic, so use expect.stringContaining
+            description: expect.stringContaining('Must be one of the following values: active, pending, completed')
           }
         },
         required: ['status']
       });
+      
+      // Check that oneOf array exists and has the right structure
+      expect(schema.properties.status.oneOf).toBeInstanceOf(Array);
+      expect(schema.properties.status.oneOf).toHaveLength(3);
+      expect(schema.properties.status.oneOf[0]).toHaveProperty('const', 'active');
+      expect(schema.properties.status.oneOf[1]).toHaveProperty('const', 'pending');
+      expect(schema.properties.status.oneOf[2]).toHaveProperty('const', 'completed');
     });
 
     it('should return null for invalid parsed syntax', () => {

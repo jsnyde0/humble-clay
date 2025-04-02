@@ -579,33 +579,39 @@ describe('ApiClient', () => {
       // Test setup
       resetAllMocks();
       
-      // Set up schema and options
-      const schemaObj = { type: 'object', properties: { name: { type: 'string' }}};
+      // Prepare test options
       const options = {
-        responseFormat: schemaObj,
+        responseFormat: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' }
+          }
+        },
         extractFieldPath: 'name'
       };
       
-      // Expected wrapped schema format
+      // Expected schema format passed to the API
       const expectedSchema = {
         type: "json_schema",
         json_schema: {
           name: "DynamicSchema",
-          schema: schemaObj
+          schema: options.responseFormat
         }
       };
       
-      // Expected prompts array
+      // Expected prompts in the request
       const expectedPrompts = [
         {
           prompt: 'input1',
           response_format: expectedSchema,
-          extract_field_path: 'name'
+          extract_field_path: 'name',
+          system_prompt: expect.stringContaining("Follow the schema constraints EXACTLY")
         },
         {
           prompt: 'input2',
           response_format: expectedSchema,
-          extract_field_path: 'name'
+          extract_field_path: 'name',
+          system_prompt: expect.stringContaining("Follow the schema constraints EXACTLY")
         }
       ];
       
@@ -624,15 +630,121 @@ describe('ApiClient', () => {
       // Call the batch function
       const result = processBatch(['input1', 'input2'], options);
       
-      // Verify
+      // Verify - using objectContaining to allow for system_prompt addition
       expect(UrlFetchApp.fetch).toHaveBeenCalledWith(
         'https://api.example.com/api/v1/prompts',
         expect.objectContaining({
-          payload: JSON.stringify({ prompts: expectedPrompts })
+          payload: expect.stringContaining('"prompts":[{')
         })
       );
       
+      // Verify the request payload was properly formatted
+      const actualPayload = JSON.parse(UrlFetchApp.fetch.mock.calls[0][1].payload);
+      expect(actualPayload).toHaveProperty('prompts');
+      expect(actualPayload.prompts).toHaveLength(2);
+      
+      // Check first prompt properties
+      expect(actualPayload.prompts[0]).toMatchObject({
+        prompt: 'input1',
+        response_format: expectedSchema,
+        extract_field_path: 'name'
+      });
+      
+      // Check second prompt properties
+      expect(actualPayload.prompts[1]).toMatchObject({
+        prompt: 'input2',
+        response_format: expectedSchema,
+        extract_field_path: 'name'
+      });
+      
+      // Verify system_prompt is included
+      expect(actualPayload.prompts[0]).toHaveProperty('system_prompt');
+      expect(actualPayload.prompts[1]).toHaveProperty('system_prompt');
+      
+      // Verify result
       expect(result).toEqual(['test1', 'test2']);
+    });
+    
+    test('should integrate with SimpleOutputField to generate schema and field path', () => {
+      // Test setup
+      resetAllMocks();
+      
+      // Mock parseSimpleSyntax to return parsed syntax
+      global.parseSimpleSyntax = jest.fn().mockReturnValue({
+        fieldName: 'age',
+        fieldType: 'integer'
+      });
+      
+      // Mock generateSchemaFromSyntax to return schema
+      global.generateSchemaFromSyntax = jest.fn().mockReturnValue({
+        type: 'object',
+        properties: {
+          age: { type: 'integer' }
+        }
+      });
+      
+      // Mock extractFieldPathFromSyntax to return field path
+      global.extractFieldPathFromSyntax = jest.fn().mockReturnValue('age');
+      
+      // Mock UrlFetchApp response
+      UrlFetchApp.fetch.mockReturnValue({
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue('{"responses":[{"status":"success","response":"42"}]}')
+      });
+      
+      // Mock PropertiesService
+      PropertiesService.getScriptProperties().getProperty.mockImplementation((key) => {
+        if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_1234567890abcdef1234567890abcdef';
+        if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
+        return null;
+      });
+      
+      // Manually convert simple field to options
+      const simpleField = 'age: int';
+      const parsedSyntax = parseSimpleSyntax(simpleField);
+      const schema = generateSchemaFromSyntax(parsedSyntax);
+      const fieldPath = extractFieldPathFromSyntax(parsedSyntax);
+      
+      const options = {
+        responseFormat: schema,
+        extractFieldPath: fieldPath
+      };
+      
+      // Call process batch with the generated options
+      const result = processBatch(['I am 42 years old'], options);
+      
+      // Expected wrapped schema format
+      const expectedSchema = {
+        type: "json_schema",
+        json_schema: {
+          name: "DynamicSchema",
+          schema: schema
+        }
+      };
+      
+      // Verify - using a more flexible check for the request payload
+      expect(UrlFetchApp.fetch).toHaveBeenCalledWith(
+        'https://api.example.com/api/v1/prompts',
+        expect.objectContaining({
+          payload: expect.stringContaining('I am 42 years old')
+        })
+      );
+      
+      // Parse the actual payload and verify its contents
+      const actualPayload = JSON.parse(UrlFetchApp.fetch.mock.calls[0][1].payload);
+      expect(actualPayload).toHaveProperty('prompts');
+      expect(actualPayload.prompts).toHaveLength(1);
+      expect(actualPayload.prompts[0]).toMatchObject({
+        prompt: 'I am 42 years old',
+        response_format: expectedSchema,
+        extract_field_path: 'age'
+      });
+      
+      // Check for system_prompt
+      expect(actualPayload.prompts[0]).toHaveProperty('system_prompt');
+      
+      // Verify result
+      expect(result).toEqual(['42']);
     });
   });
 }); 
