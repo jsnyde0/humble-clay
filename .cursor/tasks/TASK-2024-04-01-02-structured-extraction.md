@@ -17,7 +17,7 @@ Dependencies: TASK-2024-04-01-01 ✅
 *   [x] **Backend:** API accepts optional JSON Schema per prompt. (Handled via response_model)
 *   [ ] **Backend:** API accepts optional `extract_field_path` per prompt.
 *   [x] **Backend:** API generates output conforming to schema (if provided). (Implemented via Instructor)
-*   [ ] **Backend:** API extracts field based on path (if provided).
+*   [x] **Backend:** API extracts field based on path (if provided).
 *   [x] **Backend:** API returns appropriate errors for schema/path issues. (2024-04-02)
 *   [ ] System calls `/prompts` for sidebar ops (batching prompts, schema, path).
 *   [ ] System displays API response (`response` field) directly in target cells.
@@ -30,7 +30,7 @@ Dependencies: TASK-2024-04-01-01 ✅
     *   [x] Modify `PromptRequest` and `MultiplePromptsRequest` models to include optional `response_format` (containing schema) and `extract_field_path` fields. (2024-04-01) - Note: `response_format` now handled by `response_model` argument.
     *   [x] Modify `PromptResponse` and `MultiplePromptsResponse` models to handle flexible `response` type (`str | int | float | bool | None`) and standard `error` messages. (2024-04-01)
     *   [x] Implement schema enforcement logic in the LLM interaction (using Instructor). (2024-04-02)
-    *   [ ] Implement field path extraction logic (to be run after successful JSON generation).
+    *   [x] Implement field path extraction logic (to be run after successful JSON generation).
     *   [x] Implement error handling and specific error messages for schema/path failures (2024-04-02):
         *   Added specific handling for connection errors
         *   Improved error message formatting
