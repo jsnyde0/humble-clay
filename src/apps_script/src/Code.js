@@ -81,13 +81,28 @@ function validateApiConfig() {
  * Processes a range by copying values from input range to output column
  * @param {string} inputRange - The input range in A1 notation (e.g., 'A1:A10')
  * @param {string} outputColumn - The output column letter (e.g., 'C')
+ * @param {Object} schema - Optional JSON schema for output validation
+ * @param {string} fieldPath - Optional field path to extract from the response
  * @returns {Object} Result object with success status and any error message
  */
-function processRange(inputRange, outputColumn) {
+function processRange(inputRange, outputColumn, schema = null, fieldPath = '') {
   try {
     // Validate inputs
     validateRange(inputRange);
     validateOutputColumn(outputColumn);
+
+    // Validate schema (if provided)
+    if (schema !== null && typeof schema !== 'object') {
+      throw new Error('Schema must be a valid JSON object');
+    }
+
+    // Validate field path (only allowed if schema is provided)
+    if (fieldPath && !schema) {
+      throw new Error('Field path can only be used with a schema');
+    }
+    if (fieldPath && typeof fieldPath !== 'string') {
+      throw new Error('Field path must be a string');
+    }
 
     // Get the active sheet
     const sheet = SpreadsheetApp.getActiveSheet();
@@ -107,8 +122,17 @@ function processRange(inputRange, outputColumn) {
       throw new Error('No values found in the input range');
     }
 
+    // Create options object for API processing
+    const options = {};
+    if (schema) {
+      options.responseFormat = schema;
+    }
+    if (fieldPath) {
+      options.extractFieldPath = fieldPath;
+    }
+
     // Process the values using the API
-    const processedValues = processRangeWithApi(values);
+    const processedValues = processRangeWithApi(values, options);
 
     // Map input range to output range
     const outputRange = mapInputRangeToOutput(inputRange, outputColumn);

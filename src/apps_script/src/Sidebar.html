@@ -74,6 +74,46 @@
           </div>
         </div>
 
+        <!-- Advanced Options (Collapsible) -->
+        <div class="mb-3">
+          <a class="text-decoration-none" data-bs-toggle="collapse" href="#advancedOptions" role="button" aria-expanded="false" aria-controls="advancedOptions">
+            <h6><i class="bi bi-chevron-right"></i> Advanced Options</h6>
+          </a>
+          <div class="collapse" id="advancedOptions">
+            <div class="card card-body mt-2">
+              <!-- JSON Schema -->
+              <div class="mb-3">
+                <label for="jsonSchema" class="form-label">Output JSON Schema (Optional)</label>
+                <textarea class="form-control" 
+                        id="jsonSchema" 
+                        rows="4"
+                        placeholder='e.g., {"type": "object", "properties": {"name": {"type": "string"}}}'></textarea>
+                <div class="form-text">
+                  Define the structure of the LLM response using a valid JSON schema
+                </div>
+                <div class="invalid-feedback">
+                  Please enter a valid JSON schema
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-1" id="schemaExampleBtn">
+                  Show Example Schema
+                </button>
+              </div>
+              
+              <!-- Field Path -->
+              <div class="mb-3">
+                <label for="fieldPath" class="form-label">Extract Field Path (Optional)</label>
+                <input type="text" 
+                      class="form-control" 
+                      id="fieldPath" 
+                      placeholder="e.g., user.name or items[0].id">
+                <div class="form-text">
+                  Specify a path to extract a specific field from the JSON response (only works with schema)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Generate Button -->
         <button type="submit" 
                 class="btn btn-primary" 
@@ -105,10 +145,30 @@
       const form = document.getElementById('rangeForm');
       const inputRange = document.getElementById('inputRange');
       const outputColumn = document.getElementById('outputColumn');
+      const jsonSchema = document.getElementById('jsonSchema');
+      const fieldPath = document.getElementById('fieldPath');
+      const schemaExampleBtn = document.getElementById('schemaExampleBtn');
       const generateBtn = document.getElementById('generateBtn');
       const successAlert = document.getElementById('successAlert');
       const errorAlert = document.getElementById('errorAlert');
       const loadingSpinner = document.querySelector('.loading');
+
+      // Schema example button handler
+      schemaExampleBtn.addEventListener('click', function() {
+        const exampleSchema = {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "age": { "type": "number" },
+            "skills": { 
+              "type": "array", 
+              "items": { "type": "string" } 
+            }
+          },
+          "required": ["name"]
+        };
+        jsonSchema.value = JSON.stringify(exampleSchema, null, 2);
+      });
 
       // Form submission handler
       form.addEventListener('submit', function(event) {
@@ -124,15 +184,35 @@
           return;
         }
 
+        // Validate JSON schema if provided
+        let schema = null;
+        if (jsonSchema.value.trim()) {
+          try {
+            schema = JSON.parse(jsonSchema.value);
+          } catch (e) {
+            errorAlert.textContent = "Invalid JSON Schema: " + e.message;
+            errorAlert.style.display = 'block';
+            return;
+          }
+        }
+
+        // Validate field path (only allow if schema is provided)
+        let path = fieldPath.value.trim();
+        if (path && !schema) {
+          errorAlert.textContent = "Field path can only be used with a schema";
+          errorAlert.style.display = 'block';
+          return;
+        }
+
         // Show loading state
         generateBtn.disabled = true;
         loadingSpinner.style.display = 'inline-block';
 
-        // Call Google Apps Script function
+        // Call Google Apps Script function with schema and field path
         google.script.run
           .withSuccessHandler(onSuccess)
           .withFailureHandler(onError)
-          .processRange(inputRange.value, outputColumn.value);
+          .processRange(inputRange.value, outputColumn.value, schema, path);
       });
 
       // Success handler

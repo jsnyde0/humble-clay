@@ -14,7 +14,8 @@ const {
   handleApiResponse,
   validateApiKey,
   makeApiRequest,
-  processRangeWithApi
+  processRangeWithApi,
+  processBatch
 } = require('../src/ApiClient.js');
 
 describe('ApiClient', () => {
@@ -268,34 +269,86 @@ describe('ApiClient', () => {
     it('should make successful API request', () => {
       // Setup
       const testInput = 'Test input';
-      const testOptions = { systemPrompt: 'Test prompt' };
+      const expectedOutput = { response: 'Test response' };
+      
+      // Configure PropertiesService mock
+      PropertiesService.getScriptProperties().getProperty.mockImplementation(key => {
+        if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_1234567890abcdef1234567890abcdef';
+        if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
+        return null;
+      });
+      
+      UrlFetchApp.fetch.mockReturnValue({
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(JSON.stringify(expectedOutput))
+      });
       
       // Execute
-      const result = makeApiRequest(testInput, testOptions);
-
+      const result = makeApiRequest(testInput);
+      
       // Verify
+      expect(result).toEqual(expectedOutput);
       expect(UrlFetchApp.fetch).toHaveBeenCalledWith(
-        `${TEST_API_URL}${API_CONFIG.endpoints.single}`,
+        'https://api.example.com/api/v1/prompt',
         expect.objectContaining({
-          method: 'post',
-          headers: expect.objectContaining({
-            'X-API-Key': TEST_API_KEY
-          })
+          payload: JSON.stringify({ prompt: 'Test input' })
+        })
+      );
+    });
+
+    it('should include schema and field path in request payload', () => {
+      // Setup
+      const testInput = 'Test input';
+      const testSchema = { type: 'object', properties: { name: { type: 'string' } } };
+      const testFieldPath = 'name';
+      const expectedOutput = { response: 'Test response' };
+      
+      // Configure PropertiesService mock
+      PropertiesService.getScriptProperties().getProperty.mockImplementation(key => {
+        if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_1234567890abcdef1234567890abcdef';
+        if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
+        return null;
+      });
+      
+      UrlFetchApp.fetch.mockReturnValue({
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(JSON.stringify(expectedOutput))
+      });
+      
+      // Execute
+      const result = makeApiRequest(testInput, {
+        responseFormat: testSchema,
+        extractFieldPath: testFieldPath
+      });
+      
+      // Verify
+      expect(result).toEqual(expectedOutput);
+      
+      // Check if payload includes both schema and field path
+      const expectedPayload = {
+        prompt: 'Test input',
+        response_format: testSchema,
+        extract_field_path: testFieldPath
+      };
+      
+      expect(UrlFetchApp.fetch).toHaveBeenCalledWith(
+        'https://api.example.com/api/v1/prompt',
+        expect.objectContaining({
+          payload: JSON.stringify(expectedPayload)
         })
       );
     });
 
     it('should throw error if API key is not configured', () => {
-      // Setup - empty API key
-      PropertiesService.getScriptProperties().getProperty
-        .mockImplementation(key => {
-          if (key === 'HUMBLE_CLAY_API_KEY') return null;
-          if (key === 'HUMBLE_CLAY_API_URL') return TEST_API_URL;
-          return null;
-        });
-
-      // Execute & Verify
-      expect(() => makeApiRequest('Test input')).toThrow('API key not configured');
+      // Setup
+      PropertiesService.getScriptProperties().getProperty.mockImplementation(key => {
+        if (key === 'HUMBLE_CLAY_API_KEY') return null;
+        if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
+        return null;
+      });
+      
+      // Verify
+      expect(() => makeApiRequest('Test')).toThrow('API key not configured');
     });
   });
 
@@ -366,6 +419,63 @@ describe('ApiClient', () => {
         ['result1', ''],
         ['', 'result4']
       ]);
+    });
+  });
+
+  describe('processBatch', () => {
+    it('should process batch with schema and field path options', () => {
+      // Setup
+      const batch = ['input1', 'input2'];
+      const testSchema = { type: 'object', properties: { name: { type: 'string' } } };
+      const testFieldPath = 'name';
+      const mockResponse = {
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(JSON.stringify({
+          responses: [
+            { status: 'success', response: 'result1' },
+            { status: 'success', response: 'result2' }
+          ]
+        }))
+      };
+      
+      // Configure PropertiesService mock
+      PropertiesService.getScriptProperties().getProperty.mockImplementation(key => {
+        if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_1234567890abcdef1234567890abcdef';
+        if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
+        return null;
+      });
+      
+      UrlFetchApp.fetch.mockReturnValue(mockResponse);
+      
+      // Execute
+      const result = processBatch(batch, {
+        responseFormat: testSchema,
+        extractFieldPath: testFieldPath
+      });
+      
+      // Verify results
+      expect(result).toEqual(['result1', 'result2']);
+      
+      // Verify API call with options
+      const expectedPrompts = [
+        {
+          prompt: 'input1',
+          response_format: testSchema,
+          extract_field_path: testFieldPath
+        },
+        {
+          prompt: 'input2',
+          response_format: testSchema,
+          extract_field_path: testFieldPath
+        }
+      ];
+      
+      expect(UrlFetchApp.fetch).toHaveBeenCalledWith(
+        'https://api.example.com/api/v1/prompts',
+        expect.objectContaining({
+          payload: JSON.stringify({ prompts: expectedPrompts })
+        })
+      );
     });
   });
 }); 

@@ -218,6 +218,16 @@ function makeApiRequest(inputText, options = {}) {
     prompt: inputText.trim() // Match FastAPI PromptRequest model
   };
 
+  // Add responseFormat if provided in options
+  if (options.responseFormat) {
+    payload.response_format = options.responseFormat;
+  }
+
+  // Add extractFieldPath if provided in options
+  if (options.extractFieldPath) {
+    payload.extract_field_path = options.extractFieldPath;
+  }
+
   // Prepare request options
   const requestOptions = {
     method: 'post',
@@ -276,9 +286,23 @@ function processBatch(batch, options = {}) {
 
   // Format batch request to match FastAPI MultiplePromptsRequest model
   const payload = {
-    prompts: batch.map(value => ({
-      prompt: value.toString().trim()
-    }))
+    prompts: batch.map(value => {
+      const promptRequest = {
+        prompt: value.toString().trim()
+      };
+      
+      // Add responseFormat if provided in options
+      if (options.responseFormat) {
+        promptRequest.response_format = options.responseFormat;
+      }
+      
+      // Add extractFieldPath if provided in options
+      if (options.extractFieldPath) {
+        promptRequest.extract_field_path = options.extractFieldPath;
+      }
+      
+      return promptRequest;
+    })
   };
 
   // Prepare request options

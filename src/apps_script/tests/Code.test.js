@@ -58,7 +58,58 @@ describe('Code.js', () => {
       // Verify that the values were fetched and processed
       expect(mockSheet.getRange).toHaveBeenCalledWith(inputRange);
       expect(mockRange.getValues).toHaveBeenCalled();
-      expect(processRangeWithApi).toHaveBeenCalledWith(values);
+      expect(processRangeWithApi).toHaveBeenCalledWith(values, {});
+      
+      // Verify that the results were written to the output range
+      expect(mockSheet.getRange).toHaveBeenCalledWith(outputRange);
+      expect(mockRange.setValues).toHaveBeenCalledWith(processedValues);
+    });
+
+    it('should process range with schema and field path', () => {
+      // Setup test data
+      const inputRange = 'A1:A10';
+      const outputColumn = 'B';
+      const outputRange = 'B1:B10';
+      const values = [['input1'], ['input2']];
+      const processedValues = [['result1'], ['result2']];
+      const schema = { type: 'object', properties: { name: { type: 'string' } } };
+      const fieldPath = 'name';
+
+      // Configure mocks
+      validateRange.mockReturnValue(true);
+      validateOutputColumn.mockReturnValue(true);
+      mapInputRangeToOutput.mockReturnValue(outputRange);
+
+      const mockRange = {
+        getValues: jest.fn().mockReturnValue(values),
+        setValues: jest.fn()
+      };
+
+      const mockSheet = {
+        getRange: jest.fn().mockReturnValue(mockRange)
+      };
+
+      SpreadsheetApp.getActiveSheet.mockReturnValue(mockSheet);
+      
+      // Setup API client mock
+      processRangeWithApi.mockReturnValue(processedValues);
+
+      // Execute function
+      const result = processRange(inputRange, outputColumn, schema, fieldPath);
+
+      // Verify results
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Range processed successfully');
+
+      // Verify that the input was validated
+      expect(validateRange).toHaveBeenCalledWith(inputRange);
+      expect(validateOutputColumn).toHaveBeenCalledWith(outputColumn);
+      
+      // Verify that the options were passed correctly
+      expect(processRangeWithApi).toHaveBeenCalledWith(values, {
+        responseFormat: schema,
+        extractFieldPath: fieldPath
+      });
       
       // Verify that the results were written to the output range
       expect(mockSheet.getRange).toHaveBeenCalledWith(outputRange);
@@ -104,6 +155,32 @@ describe('Code.js', () => {
       // Verify
       expect(result.success).toBe(false);
       expect(result.message).toBe('Invalid column format');
+    });
+
+    it('should return error when schema is invalid', () => {
+      // Setup
+      validateRange.mockReturnValue(true);
+      validateOutputColumn.mockReturnValue(true);
+
+      // Execute with invalid schema (not an object)
+      const result = processRange('A1:A10', 'B', 'not-an-object');
+
+      // Verify
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Schema must be a valid JSON object');
+    });
+
+    it('should return error when field path is provided without schema', () => {
+      // Setup
+      validateRange.mockReturnValue(true);
+      validateOutputColumn.mockReturnValue(true);
+
+      // Execute with field path but no schema
+      const result = processRange('A1:A10', 'B', null, 'some.path');
+
+      // Verify
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Field path can only be used with a schema');
     });
 
     it('should return error when range has no values', () => {
