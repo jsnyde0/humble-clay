@@ -1,58 +1,70 @@
-// Import Jest globals
-const { jest, beforeEach } = require('@jest/globals');
+/**
+ * Jest setup file for Google Apps Script tests
+ * This file is loaded before tests run, setting up the global environment
+ */
 
-// Mock Google Apps Script global objects and functions
-global.SpreadsheetApp = {
-  getUi: jest.fn().mockReturnValue({
-    createMenu: jest.fn().mockReturnValue({
-      addItem: jest.fn().mockReturnThis(),
-      addToUi: jest.fn()
-    }),
-    showSidebar: jest.fn()
-  }),
-  getActiveSheet: jest.fn(),
-  getActiveSpreadsheet: jest.fn()
+// Mock Logger service
+global.Logger = {
+  log: jest.fn()
 };
 
-global.HtmlService = {
-  createHtmlOutputFromFile: jest.fn().mockReturnValue({
-    setTitle: jest.fn().mockReturnThis(),
-    setWidth: jest.fn().mockReturnThis()
-  })
+// Mock console methods
+global.console = {
+  ...console,
+  error: jest.fn(),
+  log: jest.fn()
 };
+
+// Mock Utilities service
+global.Utilities = {
+  sleep: jest.fn()
+};
+
+// Mock PropertiesService
+const scriptProperties = {};
 
 global.PropertiesService = {
   getScriptProperties: jest.fn().mockReturnValue({
-    getProperty: jest.fn(),
-    setProperty: jest.fn(),
-  }),
+    getProperty: jest.fn(key => scriptProperties[key]),
+    setProperty: jest.fn((key, value) => {
+      scriptProperties[key] = value;
+      return;
+    }),
+    deleteProperty: jest.fn(key => {
+      delete scriptProperties[key];
+      return;
+    })
+  })
 };
 
-// Mock sheet class
-class Sheet {
-  constructor() {
-    this.getRange = jest.fn();
-    this.getLastRow = jest.fn();
-    this.getLastColumn = jest.fn();
-  }
-}
+// Mock SpreadsheetApp
+global.SpreadsheetApp = {
+  getActiveSheet: jest.fn().mockReturnValue({
+    getRange: jest.fn().mockReturnValue({
+      getValues: jest.fn().mockReturnValue([['test']]),
+      setValues: jest.fn()
+    })
+  }),
+  getActiveSpreadsheet: jest.fn().mockReturnValue({
+    getSheetByName: jest.fn(),
+    getActiveSheet: jest.fn()
+  })
+};
 
-// Mock range class
-class Range {
-  constructor() {
-    this.getValues = jest.fn();
-    this.setValues = jest.fn();
-    this.getRow = jest.fn();
-    this.getColumn = jest.fn();
-    this.getNumRows = jest.fn();
-    this.getNumColumns = jest.fn();
-  }
-}
+// Mock UrlFetchApp
+global.UrlFetchApp = {
+  fetch: jest.fn().mockReturnValue({
+    getResponseCode: jest.fn().mockReturnValue(200),
+    getContentText: jest.fn().mockReturnValue('{"response":"test","status":"success"}')
+  })
+};
 
-// Setup default mock implementations
-SpreadsheetApp.getActiveSheet.mockReturnValue(new Sheet());
-
-// Helper to reset all mocks between tests
-beforeEach(() => {
+// Helper method to reset all mocks between tests
+global.resetAllMocks = () => {
   jest.clearAllMocks();
-}); 
+  
+  // Reset script properties
+  Object.keys(scriptProperties).forEach(key => {
+    delete scriptProperties[key];
+  });
+}; 

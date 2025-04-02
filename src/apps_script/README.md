@@ -124,4 +124,83 @@ tests/
 3. Features
    - Support for multi-column processing
    - Custom transformation options
-   - Batch processing 
+   - Batch processing
+
+## Development Guidelines
+
+### Apps Script Environment Constraints
+
+Google Apps Script has a different runtime environment than traditional Node.js. Key differences:
+
+1. **No Module System:** Apps Script doesn't support ES modules or CommonJS
+2. **Global Scope:** All functions are globally available without imports
+3. **Google Services:** Services like `SpreadsheetApp` are globally available
+
+### Testing Strategy
+
+Our code is designed to work in both environments:
+
+1. **Conditional Exports:** We use this pattern in all files:
+   ```javascript
+   // Only export for tests
+   if (typeof module !== 'undefined' && module.exports) {
+     module.exports = {
+       // functions to export
+     };
+   }
+   ```
+
+2. **Service Mocking:** In tests, we mock Google services in `tests/setup.js`
+
+3. **No Import/Export:** We avoid ES6 `import`/`export` statements
+
+## Project Structure
+
+- `src/` - Apps Script source files
+  - `Code.js` - Main entry point
+  - `UI.js` - UI-related functions
+  - `ApiClient.js` - API communication
+  - `Config.js` - Configuration handling
+  - `Sidebar.html` - HTML for the sidebar UI
+- `tests/` - Test files
+  - `setup.js` - Jest setup and Google services mocks
+  - `*.test.js` - Test files for corresponding source files
+
+## Working with Tests
+
+### Running Tests
+
+```bash
+npm test
+```
+
+### Testing Specific Files
+
+```bash
+npm test -- tests/ApiClient.test.js
+```
+
+### Debugging Tests
+
+```bash
+npm test -- --verbose
+```
+
+## Deployment
+
+Deploy to Google Apps Script using Clasp:
+
+```bash
+npm run clasp:push
+```
+
+## Common Issues
+
+### Tests Pass but Deployment Fails
+
+If tests pass but the deployed script fails:
+
+1. Check if your code is using ES6 features not supported in Apps Script
+2. Ensure conditional exports are properly implemented 
+3. Verify that functions used in HTML are globally available
+4. Check if you're using Google services directly in the Apps Script code 

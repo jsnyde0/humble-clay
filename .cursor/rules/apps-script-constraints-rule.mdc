@@ -1,7 +1,7 @@
 ---
-type: Auto Attached
 description: Reminds about Google Apps Script (GAS) constraints when working in the apps_script directory.
 globs: src/apps_script/**/*.js
+alwaysApply: false
 ---
 # Google Apps Script Development Constraints
 
