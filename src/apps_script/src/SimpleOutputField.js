@@ -1,6 +1,7 @@
 /**
  * SimpleOutputField.js - Provides functions for parsing simplified field syntax
  * and converting it to JSON schema
+ * This module works in both Google Apps Script and Node.js testing environments
  */
 
 /**
@@ -17,6 +18,10 @@ function parseSimpleSyntax(syntax) {
   // Trim whitespace
   syntax = syntax.trim();
   
+  if (syntax === '') {
+    return null;
+  }
+  
   // Check for enum syntax with square brackets
   const enumRegex = /^([a-zA-Z0-9_]+)\s*:\s*\[(.*?)\]$/;
   const enumMatch = syntax.match(enumRegex);
@@ -25,7 +30,11 @@ function parseSimpleSyntax(syntax) {
     // This is an enum field
     const fieldName = enumMatch[1].trim();
     const enumString = enumMatch[2].trim();
-    const enumValues = enumString.split(',').map(value => value.trim());
+    const enumValues = enumString.split(',').map(value => value.trim()).filter(val => val !== '');
+    
+    if (enumValues.length === 0) {
+      return null;
+    }
     
     return {
       fieldName: fieldName,
@@ -134,9 +143,15 @@ function extractFieldPathFromSyntax(parsedSyntax) {
   return parsedSyntax.fieldName;
 }
 
-// Export the functions
-module.exports = {
-  parseSimpleSyntax,
-  generateSchemaFromSyntax,
-  extractFieldPathFromSyntax
-}; 
+// Make functions available in the global scope for Google Apps Script
+// This is necessary because Apps Script doesn't support module imports
+
+// Conditional export for testing with Node.js
+// Only export if we're in a Node.js environment
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    parseSimpleSyntax,
+    generateSchemaFromSyntax,
+    extractFieldPathFromSyntax
+  };
+} 

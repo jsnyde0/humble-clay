@@ -6,7 +6,16 @@
  * Creates and shows the sidebar
  */
 function showSidebarUI() {
-  const html = HtmlService.createHtmlOutputFromFile('Sidebar')
+  // Create the HTML output from the Sidebar file
+  let htmlOutput = HtmlService.createTemplateFromFile('Sidebar');
+  
+  // Include the SimpleOutputField.js functions
+  htmlOutput.parseSimpleSyntax = parseSimpleSyntax;
+  htmlOutput.generateSchemaFromSyntax = generateSchemaFromSyntax;
+  htmlOutput.extractFieldPathFromSyntax = extractFieldPathFromSyntax;
+  
+  // Evaluate the template and set properties
+  const html = htmlOutput.evaluate()
     .setTitle('Humble Clay')
     .setWidth(300);
   

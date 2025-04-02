@@ -92,6 +92,11 @@
         background-color: #f1f1f1;
         color: #333;
       }
+      .hint-text {
+        font-size: 11px;
+        color: #666;
+        margin-top: 5px;
+      }
     </style>
   </head>
   <body>
@@ -110,6 +115,12 @@
         <div class="form-group">
           <label for="outputColumn">Output Column *</label>
           <input type="text" id="outputColumn" placeholder="e.g., B" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="simpleField">Output Field (Optional)</label>
+          <input type="text" id="simpleField" placeholder="e.g., age: int, status: [active, pending]">
+          <div class="hint-text">Examples: company_name, age: int, is_active: bool, status: [active, pending]</div>
         </div>
         
         <div class="advanced-toggle" id="advancedToggle">
@@ -191,6 +202,63 @@
         document.getElementById('jsonSchema').value = JSON.stringify(example, null, 2);
       });
 
+      // Function to parse simple field syntax and update schema and field path
+      function updateSchemaFromSimpleField() {
+        var simpleField = document.getElementById('simpleField').value.trim();
+        var jsonSchemaField = document.getElementById('jsonSchema');
+        var fieldPathField = document.getElementById('fieldPath');
+        
+        // Only proceed if simpleField has a value
+        if (simpleField) {
+          // Clear existing values in advanced fields
+          if (jsonSchemaField.value) {
+            jsonSchemaField.value = '';
+          }
+          if (fieldPathField.value) {
+            fieldPathField.value = '';
+          }
+          
+          // Try to load the SimpleOutputField functions
+          try {
+            // Call the parseSimpleSyntax function
+            var parsedSyntax = parseSimpleSyntax(simpleField);
+            
+            if (parsedSyntax) {
+              // Generate schema
+              var schema = generateSchemaFromSyntax(parsedSyntax);
+              if (schema) {
+                jsonSchemaField.value = JSON.stringify(schema, null, 2);
+              }
+              
+              // Set field path
+              var fieldPath = extractFieldPathFromSyntax(parsedSyntax);
+              if (fieldPath) {
+                fieldPathField.value = fieldPath;
+              }
+            }
+          } catch (e) {
+            console.error('Error processing simple field:', e);
+            // Don't show error to user - just leave advanced fields empty
+          }
+        }
+      }
+
+      // Listen for changes to the simple field
+      document.getElementById('simpleField').addEventListener('blur', updateSchemaFromSimpleField);
+      
+      // Listen for changes to advanced fields to clear simple field
+      document.getElementById('jsonSchema').addEventListener('input', function() {
+        if (this.value && document.getElementById('simpleField').value) {
+          document.getElementById('simpleField').value = '';
+        }
+      });
+      
+      document.getElementById('fieldPath').addEventListener('input', function() {
+        if (this.value && document.getElementById('simpleField').value) {
+          document.getElementById('simpleField').value = '';
+        }
+      });
+
       document.addEventListener('DOMContentLoaded', function() {
         // Initialize form with URL parameters if present
         var inputRange = getUrlParameter('inputRange');
@@ -205,6 +273,7 @@
           
           var inputRange = document.getElementById('inputRange').value;
           var outputColumn = document.getElementById('outputColumn').value;
+          var simpleField = document.getElementById('simpleField').value;
           var jsonSchema = document.getElementById('jsonSchema').value;
           var fieldPath = document.getElementById('fieldPath').value;
           
@@ -212,6 +281,13 @@
           if (!inputRange || !outputColumn) {
             showError('Please fill in all required fields.');
             return;
+          }
+          
+          // Process simple field if provided (and advanced options aren't)
+          if (simpleField && (!jsonSchema && !fieldPath)) {
+            updateSchemaFromSimpleField();
+            jsonSchema = document.getElementById('jsonSchema').value;
+            fieldPath = document.getElementById('fieldPath').value;
           }
           
           // Validate schema if provided

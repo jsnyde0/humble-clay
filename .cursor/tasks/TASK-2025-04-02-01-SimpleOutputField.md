@@ -31,11 +31,11 @@ Implement a simplified syntax for output field definition in the Humble Clay UI 
 - [x] Verify compatibility with existing API client
 
 ### 4. UI Updates (R2)
-- [ ] Add a single-line text input field for simple syntax
-- [ ] Update the collapsible advanced options section
-- [ ] Add help text with examples
-- [ ] Pre-fill the input with an example
-- [ ] Test the UI changes manually
+- [x] Add a single-line text input field for simple syntax
+- [x] Update the collapsible advanced options section
+- [x] Add help text with examples
+- [x] Pre-fill the input with an example
+- [x] Test the UI changes manually
 
 ### 5. Integration Testing
 - [ ] Create end-to-end tests with simple syntax inputs

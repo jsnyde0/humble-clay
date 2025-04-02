@@ -9,13 +9,23 @@ describe('UI', () => {
   beforeEach(() => {
     // Reset all mocks before each test
     resetAllMocks();
+    
+    // Mock SimpleOutputField functions
+    global.parseSimpleSyntax = jest.fn();
+    global.generateSchemaFromSyntax = jest.fn();
+    global.extractFieldPathFromSyntax = jest.fn();
   });
   
   describe('showSidebar', () => {
     test('creates and shows sidebar with correct settings', () => {
-      const mockHtmlOutput = {
-        setTitle: jest.fn().mockReturnThis(),
-        setWidth: jest.fn().mockReturnThis()
+      const mockTemplate = {
+        parseSimpleSyntax: null,
+        generateSchemaFromSyntax: null,
+        extractFieldPathFromSyntax: null,
+        evaluate: jest.fn().mockReturnValue({
+          setTitle: jest.fn().mockReturnThis(),
+          setWidth: jest.fn().mockReturnThis()
+        })
       };
 
       const mockUi = {
@@ -23,7 +33,7 @@ describe('UI', () => {
       };
 
       // Mock HtmlService
-      HtmlService.createHtmlOutputFromFile.mockReturnValue(mockHtmlOutput);
+      HtmlService.createTemplateFromFile.mockReturnValue(mockTemplate);
 
       // Mock SpreadsheetApp.getUi()
       SpreadsheetApp.getUi.mockReturnValue(mockUi);
@@ -31,10 +41,16 @@ describe('UI', () => {
       // Call the method
       UI.showSidebarUI();
 
-      // Verify HTML creation
-      expect(HtmlService.createHtmlOutputFromFile).toHaveBeenCalledWith('Sidebar');
-      expect(mockHtmlOutput.setTitle).toHaveBeenCalledWith('Humble Clay');
-      expect(mockHtmlOutput.setWidth).toHaveBeenCalledWith(300);
+      // Verify template creation and function assignment
+      expect(HtmlService.createTemplateFromFile).toHaveBeenCalledWith('Sidebar');
+      expect(mockTemplate.parseSimpleSyntax).toBe(parseSimpleSyntax);
+      expect(mockTemplate.generateSchemaFromSyntax).toBe(generateSchemaFromSyntax);
+      expect(mockTemplate.extractFieldPathFromSyntax).toBe(extractFieldPathFromSyntax);
+      
+      // Verify HTML settings
+      const evaluatedTemplate = mockTemplate.evaluate();
+      expect(evaluatedTemplate.setTitle).toHaveBeenCalledWith('Humble Clay');
+      expect(evaluatedTemplate.setWidth).toHaveBeenCalledWith(300);
 
       // Verify sidebar display
       expect(mockUi.showSidebar).toHaveBeenCalled();

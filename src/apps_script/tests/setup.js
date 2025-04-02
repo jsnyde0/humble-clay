@@ -123,6 +123,12 @@ global.makeApiRequest = jest.fn(ApiClient.makeApiRequest);
 global.formatRequestPayload = jest.fn(ApiClient.formatRequestPayload);
 global.handleApiResponse = jest.fn(ApiClient.handleApiResponse);
 
+// Import SimpleOutputField functions and expose them globally
+const SimpleOutputField = require('../src/SimpleOutputField');
+global.parseSimpleSyntax = jest.fn(SimpleOutputField.parseSimpleSyntax);
+global.generateSchemaFromSyntax = jest.fn(SimpleOutputField.generateSchemaFromSyntax);
+global.extractFieldPathFromSyntax = jest.fn(SimpleOutputField.extractFieldPathFromSyntax);
+
 // Helper method to reset all mocks between tests
 global.resetAllMocks = () => {
   jest.clearAllMocks();
@@ -152,4 +158,7 @@ global.resetAllMocks = () => {
   global.makeApiRequest.mockClear();
   global.formatRequestPayload.mockClear();
   global.handleApiResponse.mockClear();
+  global.parseSimpleSyntax.mockClear();
+  global.generateSchemaFromSyntax.mockClear();
+  global.extractFieldPathFromSyntax.mockClear();
 }; 
