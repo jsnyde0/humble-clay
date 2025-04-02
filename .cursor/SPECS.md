@@ -13,3 +13,7 @@
   - Stage 2: API Integration
   - Stage 3: Enhanced Features
   - Stage 4: Advanced Features 
+
+## UI Specifications
+- [Simple Output Field](specs/ui/simple_output_field.md)
+  - Status: Not Started 
