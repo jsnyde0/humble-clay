@@ -11,24 +11,24 @@ Implement a simplified syntax for output field definition in the Humble Clay UI 
 ## Implementation Steps
 
 ### 1. Set Up Testing Environment
-- [ ] Create a test file for the simple syntax parser
-- [ ] Set up basic test cases for each syntax type (string, int, float, bool, enum)
-- [ ] Establish test structure for validation and error cases
+- [x] Create a test file for the simple syntax parser
+- [x] Set up basic test cases for each syntax type (string, int, float, bool, enum)
+- [x] Establish test structure for validation and error cases
 
 ### 2. Implement the Parser (R1)
-- [ ] Create a module for parsing the simplified syntax
-- [ ] Implement string field parsing (with default type when no type specified)
-- [ ] Implement basic type parsing (int, float, bool)
-- [ ] Implement simple enum value parsing
-- [ ] Add basic validation with generic error messages
-- [ ] Write tests for each parser feature
+- [x] Create a module for parsing the simplified syntax
+- [x] Implement string field parsing (with default type when no type specified)
+- [x] Implement basic type parsing (int, float, bool)
+- [x] Implement simple enum value parsing
+- [x] Add basic validation with generic error messages
+- [x] Write tests for each parser feature
 
 ### 3. Schema Generation with Templates (R3.1)
-- [ ] Create the template strings for each field type
-- [ ] Implement template-based schema generation
-- [ ] Add field name extraction for auto-setting extract_field_path
-- [ ] Test schema generation with various inputs
-- [ ] Verify compatibility with existing API client
+- [x] Create the template strings for each field type
+- [x] Implement template-based schema generation
+- [x] Add field name extraction for auto-setting extract_field_path
+- [x] Test schema generation with various inputs
+- [x] Verify compatibility with existing API client
 
 ### 4. UI Updates (R2)
 - [ ] Add a single-line text input field for simple syntax
