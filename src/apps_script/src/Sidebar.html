@@ -6,28 +6,91 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
       body {
-        padding: 15px;
+        padding: 12px;
         font-family: Arial, sans-serif;
       }
-      .form-label {
-        font-weight: 500;
-        margin-bottom: 0.3rem;
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input, textarea {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+      }
+      textarea.json-schema {
+        height: 150px;
+        min-height: 150px;
+        font-size: 11px;
+        font-family: monospace;
+      }
+      button {
+        background-color: #4285f4;
+        color: white;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      button:hover {
+        background-color: #3b78e7;
       }
       .alert {
+        padding: 12px;
+        margin-top: 15px;
         display: none;
-        margin-top: 1rem;
+        border-radius: 4px;
       }
-      .form-text {
-        font-size: 0.8rem;
-        color: #6c757d;
+      .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
       }
-      #generateBtn {
-        margin-top: 1rem;
-        width: 100%;
+      .alert-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
       }
-      .loading {
+      .hidden {
         display: none;
-        margin-left: 0.5rem;
+      }
+      .spinner {
+        display: none;
+        text-align: center;
+        margin-top: 15px;
+      }
+      .advanced-toggle {
+        cursor: pointer;
+        padding: 8px;
+        background-color: #f1f1f1;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        font-weight: bold;
+      }
+      .advanced-toggle:hover {
+        background-color: #e7e7e7;
+      }
+      .advanced-options {
+        display: none;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+      }
+      .example-button {
+        font-size: 10px;
+        padding: 4px 8px;
+        margin-top: 5px;
+        display: inline-block;
+        background-color: #f1f1f1;
+        color: #333;
       }
     </style>
   </head>
@@ -39,101 +102,42 @@
         </div>
       </div>
       
-      <form id="rangeForm">
-        <!-- Input Range -->
-        <div class="mb-3">
-          <label for="inputRange" class="form-label">Input Range</label>
-          <input type="text" 
-                 class="form-control" 
-                 id="inputRange" 
-                 placeholder="e.g., A1:A10"
-                 required
-                 pattern="^[A-Z]{1,2}\d+:[A-Z]{1,2}\d+$">
-          <div class="form-text">
-            Enter a valid range in A1 notation (e.g., A1:A10)
+      <form id="promptForm">
+        <div class="form-group">
+          <label for="inputRange">Input Range *</label>
+          <input type="text" id="inputRange" placeholder="e.g., A1:A10" required>
+        </div>
+        <div class="form-group">
+          <label for="outputColumn">Output Column *</label>
+          <input type="text" id="outputColumn" placeholder="e.g., B" required>
+        </div>
+        
+        <div class="advanced-toggle" id="advancedToggle">
+          ▶ Advanced Options
+        </div>
+        
+        <div class="advanced-options" id="advancedOptions">
+          <div class="form-group">
+            <label for="jsonSchema">Output JSON Schema (Optional)</label>
+            <textarea id="jsonSchema" class="json-schema" placeholder="Enter a valid JSON schema to define the structure of the LLM response"></textarea>
+            <button type="button" id="showExampleSchema" class="example-button">Show example</button>
           </div>
-          <div class="invalid-feedback">
-            Please enter a valid range (e.g., A1:A10)
+          <div class="form-group">
+            <label for="fieldPath">Extract Field Path (Optional)</label>
+            <input type="text" id="fieldPath" placeholder="e.g., user.name or skills[0]">
           </div>
         </div>
-
-        <!-- Output Column -->
-        <div class="mb-3">
-          <label for="outputColumn" class="form-label">Output Column</label>
-          <input type="text" 
-                 class="form-control" 
-                 id="outputColumn" 
-                 placeholder="e.g., C"
-                 required
-                 pattern="^[A-Z]{1,2}$">
-          <div class="form-text">
-            Enter a column letter (A-Z or AA-ZZ)
-          </div>
-          <div class="invalid-feedback">
-            Please enter a valid column letter
-          </div>
-        </div>
-
-        <!-- Advanced Options (Collapsible) -->
-        <div class="mb-3">
-          <a class="text-decoration-none" data-bs-toggle="collapse" href="#advancedOptions" role="button" aria-expanded="false" aria-controls="advancedOptions">
-            <h6><i class="bi bi-chevron-right"></i> Advanced Options</h6>
-          </a>
-          <div class="collapse" id="advancedOptions">
-            <div class="card card-body mt-2">
-              <!-- JSON Schema -->
-              <div class="mb-3">
-                <label for="jsonSchema" class="form-label">Output JSON Schema (Optional)</label>
-                <textarea class="form-control" 
-                        id="jsonSchema" 
-                        rows="4"
-                        placeholder='e.g., {"type": "object", "properties": {"name": {"type": "string"}}}'></textarea>
-                <div class="form-text">
-                  Define the structure of the LLM response using a valid JSON schema
-                </div>
-                <div class="invalid-feedback">
-                  Please enter a valid JSON schema
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary mt-1" id="schemaExampleBtn">
-                  Show Example Schema
-                </button>
-              </div>
-              
-              <!-- Field Path -->
-              <div class="mb-3">
-                <label for="fieldPath" class="form-label">Extract Field Path (Optional)</label>
-                <input type="text" 
-                      class="form-control" 
-                      id="fieldPath" 
-                      placeholder="e.g., user.name or items[0].id">
-                <div class="form-text">
-                  Specify a path to extract a specific field from the JSON response (only works with schema)
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Generate Button -->
-        <button type="submit" 
-                class="btn btn-primary" 
-                id="generateBtn">
-          Generate Output
-          <span class="spinner-border spinner-border-sm loading" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </span>
-        </button>
+        
+        <button type="submit" id="generateButton">Generate Output</button>
       </form>
-
-      <!-- Success Alert -->
-      <div class="alert alert-success" role="alert" id="successAlert">
-        Output generated successfully!
+      
+      <div class="spinner" id="spinner">
+        <img src="https://www.gstatic.com/images/icons/material/system/1x/sync_black_20dp.png" width="20" height="20">
+        Processing...
       </div>
-
-      <!-- Error Alert -->
-      <div class="alert alert-danger" role="alert" id="errorAlert">
-        An error occurred. Please check your input and try again.
-      </div>
+      
+      <div class="alert alert-success" id="successAlert"></div>
+      <div class="alert alert-error" id="errorAlert"></div>
     </div>
 
     <!-- Bootstrap Bundle with Popper -->
@@ -141,119 +145,129 @@
     
     <!-- Client-side validation and interaction -->
     <script>
-      // Initialize form validation
-      const form = document.getElementById('rangeForm');
-      const inputRange = document.getElementById('inputRange');
-      const outputColumn = document.getElementById('outputColumn');
-      const jsonSchema = document.getElementById('jsonSchema');
-      const fieldPath = document.getElementById('fieldPath');
-      const schemaExampleBtn = document.getElementById('schemaExampleBtn');
-      const generateBtn = document.getElementById('generateBtn');
-      const successAlert = document.getElementById('successAlert');
-      const errorAlert = document.getElementById('errorAlert');
-      const loadingSpinner = document.querySelector('.loading');
+      // Function to get URL parameter
+      function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        var results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+      }
 
-      // Schema example button handler
-      schemaExampleBtn.addEventListener('click', function() {
-        const exampleSchema = {
+      // Function to validate JSON
+      function isValidJson(json) {
+        if (!json) return true; // Empty is valid
+        try {
+          JSON.parse(json);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+      
+      document.getElementById('advancedToggle').addEventListener('click', function() {
+        var options = document.getElementById('advancedOptions');
+        if (options.style.display === 'block') {
+          options.style.display = 'none';
+          this.innerHTML = '▶ Advanced Options';
+        } else {
+          options.style.display = 'block';
+          this.innerHTML = '▼ Advanced Options';
+        }
+      });
+      
+      document.getElementById('showExampleSchema').addEventListener('click', function() {
+        var example = {
           "type": "object",
           "properties": {
             "name": { "type": "string" },
             "age": { "type": "number" },
             "skills": { 
-              "type": "array", 
-              "items": { "type": "string" } 
+              "type": "array",
+              "items": { "type": "string" }
             }
           },
-          "required": ["name"]
+          "required": ["name", "age"]
         };
-        jsonSchema.value = JSON.stringify(exampleSchema, null, 2);
+        document.getElementById('jsonSchema').value = JSON.stringify(example, null, 2);
       });
 
-      // Form submission handler
-      form.addEventListener('submit', function(event) {
-        event.preventDefault();
+      document.addEventListener('DOMContentLoaded', function() {
+        // Initialize form with URL parameters if present
+        var inputRange = getUrlParameter('inputRange');
+        var outputColumn = getUrlParameter('outputColumn');
         
-        // Reset alerts
-        successAlert.style.display = 'none';
-        errorAlert.style.display = 'none';
-
-        if (!form.checkValidity()) {
-          event.stopPropagation();
-          form.classList.add('was-validated');
-          return;
-        }
-
-        // Validate JSON schema if provided
-        let schema = null;
-        if (jsonSchema.value.trim()) {
-          try {
-            schema = JSON.parse(jsonSchema.value);
-          } catch (e) {
-            errorAlert.textContent = "Invalid JSON Schema: " + e.message;
-            errorAlert.style.display = 'block';
+        if (inputRange) document.getElementById('inputRange').value = inputRange;
+        if (outputColumn) document.getElementById('outputColumn').value = outputColumn;
+        
+        // Form submission handler
+        document.getElementById('promptForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          
+          var inputRange = document.getElementById('inputRange').value;
+          var outputColumn = document.getElementById('outputColumn').value;
+          var jsonSchema = document.getElementById('jsonSchema').value;
+          var fieldPath = document.getElementById('fieldPath').value;
+          
+          // Basic validation
+          if (!inputRange || !outputColumn) {
+            showError('Please fill in all required fields.');
             return;
           }
-        }
-
-        // Validate field path (only allow if schema is provided)
-        let path = fieldPath.value.trim();
-        if (path && !schema) {
-          errorAlert.textContent = "Field path can only be used with a schema";
-          errorAlert.style.display = 'block';
-          return;
-        }
-
-        // Show loading state
-        generateBtn.disabled = true;
-        loadingSpinner.style.display = 'inline-block';
-
-        // Call Google Apps Script function with schema and field path
-        google.script.run
-          .withSuccessHandler(onSuccess)
-          .withFailureHandler(onError)
-          .processRange(inputRange.value, outputColumn.value, schema, path);
+          
+          // Validate schema if provided
+          if (jsonSchema && !isValidJson(jsonSchema)) {
+            showError('Invalid JSON schema. Please check your format.');
+            return;
+          }
+          
+          // Validate field path only allowed if schema is provided
+          if (fieldPath && !jsonSchema) {
+            showError('Field path can only be used when a JSON schema is provided.');
+            return;
+          }
+          
+          // Show spinner
+          document.getElementById('spinner').style.display = 'block';
+          
+          // Hide previous alerts
+          document.getElementById('successAlert').style.display = 'none';
+          document.getElementById('errorAlert').style.display = 'none';
+          
+          // Prepare schema object if provided
+          var schemaObj = jsonSchema ? JSON.parse(jsonSchema) : null;
+          
+          // Call the server-side function
+          google.script.run
+            .withSuccessHandler(function(result) {
+              // Hide spinner
+              document.getElementById('spinner').style.display = 'none';
+              
+              if (result.success) {
+                showSuccess(result.message);
+              } else {
+                showError(result.message);
+              }
+            })
+            .withFailureHandler(function(error) {
+              // Hide spinner
+              document.getElementById('spinner').style.display = 'none';
+              showError('Error: ' + error.message);
+            })
+            .processRange(inputRange, outputColumn, schemaObj, fieldPath);
+        });
       });
-
-      // Success handler
-      function onSuccess(result) {
-        generateBtn.disabled = false;
-        loadingSpinner.style.display = 'none';
-        successAlert.style.display = 'block';
-        form.reset();
-        form.classList.remove('was-validated');
+      
+      function showSuccess(message) {
+        var alert = document.getElementById('successAlert');
+        alert.textContent = message;
+        alert.style.display = 'block';
       }
-
-      // Error handler
-      function onError(error) {
-        generateBtn.disabled = false;
-        loadingSpinner.style.display = 'none';
-        errorAlert.textContent = error.message || 'An error occurred. Please try again.';
-        errorAlert.style.display = 'block';
+      
+      function showError(message) {
+        var alert = document.getElementById('errorAlert');
+        alert.textContent = message;
+        alert.style.display = 'block';
       }
-
-      // Real-time validation
-      inputRange.addEventListener('input', function() {
-        const isValid = this.checkValidity();
-        if (isValid) {
-          this.classList.remove('is-invalid');
-          this.classList.add('is-valid');
-        } else {
-          this.classList.remove('is-valid');
-          this.classList.add('is-invalid');
-        }
-      });
-
-      outputColumn.addEventListener('input', function() {
-        const isValid = this.checkValidity();
-        if (isValid) {
-          this.classList.remove('is-invalid');
-          this.classList.add('is-valid');
-        } else {
-          this.classList.remove('is-valid');
-          this.classList.add('is-invalid');
-        }
-      });
     </script>
   </body>
 </html> 
