@@ -604,14 +604,12 @@ describe('ApiClient', () => {
         {
           prompt: 'input1',
           response_format: expectedSchema,
-          extract_field_path: 'name',
-          system_prompt: expect.stringContaining("Follow the schema constraints EXACTLY")
+          extract_field_path: 'name'
         },
         {
           prompt: 'input2',
           response_format: expectedSchema,
-          extract_field_path: 'name',
-          system_prompt: expect.stringContaining("Follow the schema constraints EXACTLY")
+          extract_field_path: 'name'
         }
       ];
       
@@ -657,9 +655,9 @@ describe('ApiClient', () => {
         extract_field_path: 'name'
       });
       
-      // Verify system_prompt is included
-      expect(actualPayload.prompts[0]).toHaveProperty('system_prompt');
-      expect(actualPayload.prompts[1]).toHaveProperty('system_prompt');
+      // Verify system_prompt is not included
+      expect(actualPayload.prompts[0]).not.toHaveProperty('system_prompt');
+      expect(actualPayload.prompts[1]).not.toHaveProperty('system_prompt');
       
       // Verify result
       expect(result).toEqual(['test1', 'test2']);
@@ -740,8 +738,8 @@ describe('ApiClient', () => {
         extract_field_path: 'age'
       });
       
-      // Check for system_prompt
-      expect(actualPayload.prompts[0]).toHaveProperty('system_prompt');
+      // Check that system_prompt is not present
+      expect(actualPayload.prompts[0]).not.toHaveProperty('system_prompt');
       
       // Verify result
       expect(result).toEqual(['42']);

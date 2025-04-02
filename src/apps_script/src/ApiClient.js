@@ -313,9 +313,6 @@ function processBatch(batch, options = {}) {
             schema: options.responseFormat
           }
         };
-        
-        // Add system instructions to enforce schema constraints
-        promptRequest.system_prompt = "You are a precise data extraction tool. Follow the schema constraints EXACTLY. Only return values that match the schema requirements. For enums, return ONLY one of the allowed values, nothing else.";
       }
       
       // Add extractFieldPath if provided in options
