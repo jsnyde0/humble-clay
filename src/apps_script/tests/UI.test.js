@@ -19,9 +19,7 @@ describe('UI', () => {
   describe('showSidebar', () => {
     test('creates and shows sidebar with correct settings', () => {
       const mockTemplate = {
-        parseSimpleSyntax: null,
-        generateSchemaFromSyntax: null,
-        extractFieldPathFromSyntax: null,
+        simpleOutputFieldInit: null,
         evaluate: jest.fn().mockReturnValue({
           setTitle: jest.fn().mockReturnThis(),
           setWidth: jest.fn().mockReturnThis()
@@ -43,9 +41,9 @@ describe('UI', () => {
 
       // Verify template creation and function assignment
       expect(HtmlService.createTemplateFromFile).toHaveBeenCalledWith('Sidebar');
-      expect(mockTemplate.parseSimpleSyntax).toBe(parseSimpleSyntax);
-      expect(mockTemplate.generateSchemaFromSyntax).toBe(generateSchemaFromSyntax);
-      expect(mockTemplate.extractFieldPathFromSyntax).toBe(extractFieldPathFromSyntax);
+      expect(mockTemplate.simpleOutputFieldInit).toContain('var parseSimpleSyntax =');
+      expect(mockTemplate.simpleOutputFieldInit).toContain('var generateSchemaFromSyntax =');
+      expect(mockTemplate.simpleOutputFieldInit).toContain('var extractFieldPathFromSyntax =');
       
       // Verify HTML settings
       const evaluatedTemplate = mockTemplate.evaluate();

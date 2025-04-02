@@ -64,9 +64,9 @@ clasp clone <script-id>  # Get script ID from your Sheet's Apps Script editor UR
 - Run tests: `npm test`
 - Check linting: `npm run lint`
 - Fix linting issues: `npm run lint:fix`
-- Push to Apps Script: `clasp push`
+- Push to Apps Script: `npx clasp push`
 - Create new version: `clasp version [description]`
-- Deploy: `clasp deploy`
+- Deploy: `npx clasp deploy`
 
 ### 5. Testing
 Tests are written using Jest and located in the `tests/` directory.

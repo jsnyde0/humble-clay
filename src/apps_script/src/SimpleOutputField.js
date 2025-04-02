@@ -115,10 +115,18 @@ function generateSchemaFromSyntax(parsedSyntax) {
       break;
     case 'enum':
       if (Array.isArray(parsedSyntax.enumValues) && parsedSyntax.enumValues.length > 0) {
+        // Enhanced enum handling with description to guide the LLM
         schema.properties[parsedSyntax.fieldName] = {
           type: 'string',
-          enum: parsedSyntax.enumValues
+          enum: parsedSyntax.enumValues,
+          description: `Must be one of the following values: ${parsedSyntax.enumValues.join(', ')}. Extract just the single value that best matches from the text.`
         };
+        
+        // Add a oneOf constraint to make the enum restriction more explicit
+        schema.properties[parsedSyntax.fieldName].oneOf = parsedSyntax.enumValues.map(value => ({
+          const: value,
+          title: value
+        }));
       } else {
         return null; // Invalid enum values
       }

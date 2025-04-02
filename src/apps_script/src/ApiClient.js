@@ -275,6 +275,9 @@ function validateApiKey(apiKey) {
  * @returns {Promise<Array>} Processed values
  */
 function processBatch(batch, options = {}) {
+  // Debug logging for options
+  Logger.log(`[processBatch] Called with options: ${JSON.stringify(options)}`);
+
   if (!Array.isArray(batch) || batch.length === 0) {
     throw new Error('Batch cannot be empty');
   }
@@ -300,7 +303,9 @@ function processBatch(batch, options = {}) {
       
       // Add responseFormat if provided in options
       if (options.responseFormat) {
-        // Format the schema according to the API's expected structure
+        Logger.log(`[processBatch] Adding schema to request: ${JSON.stringify(options.responseFormat)}`);
+        
+        // Enhanced schema formatting for better LLM guidance
         promptRequest.response_format = {
           type: "json_schema",
           json_schema: {
@@ -308,16 +313,23 @@ function processBatch(batch, options = {}) {
             schema: options.responseFormat
           }
         };
+        
+        // Add system instructions to enforce schema constraints
+        promptRequest.system_prompt = "You are a precise data extraction tool. Follow the schema constraints EXACTLY. Only return values that match the schema requirements. For enums, return ONLY one of the allowed values, nothing else.";
       }
       
       // Add extractFieldPath if provided in options
       if (options.extractFieldPath) {
+        Logger.log(`[processBatch] Adding field path to request: ${options.extractFieldPath}`);
         promptRequest.extract_field_path = options.extractFieldPath;
       }
       
       return promptRequest;
     })
   };
+
+  // Debug log completed payload
+  Logger.log(`[processBatch] Final request payload: ${JSON.stringify(payload)}`);
 
   // Prepare request options
   const requestOptions = {
@@ -367,6 +379,9 @@ function processBatch(batch, options = {}) {
  * @returns {Array<Array<string>>} Processed values
  */
 function processRangeWithApi(values, options = {}) {
+  // Debug log for options
+  Logger.log(`[processRangeWithApi] Called with options: ${JSON.stringify(options)}`);
+  
   // Validate input is a 2D array
   if (!Array.isArray(values)) {
     throw new Error('Values array cannot be empty');
@@ -394,6 +409,9 @@ function processRangeWithApi(values, options = {}) {
   for (let i = 0; i < flatValues.length; i += API_CONFIG.maxBatchSize) {
     const batch = flatValues.slice(i, i + API_CONFIG.maxBatchSize);
     try {
+      // Debug log for batch processing
+      Logger.log(`[processRangeWithApi] Processing batch ${i/API_CONFIG.maxBatchSize + 1} with options: ${JSON.stringify(options)}`);
+      
       const batchResults = processBatch(batch, options);
       results.push(...batchResults);
     } catch (error) {

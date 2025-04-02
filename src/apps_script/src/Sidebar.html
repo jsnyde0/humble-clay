@@ -3,170 +3,122 @@
   <head>
     <base target="_top">
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
       body {
-        padding: 12px;
+        padding: 10px;
         font-family: Arial, sans-serif;
       }
       .form-group {
         margin-bottom: 15px;
       }
-      label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: bold;
+      .hint {
+        font-size: 0.8em;
+        color: #6c757d;
+        margin-top: 3px;
       }
-      input, textarea {
-        width: 100%;
-        padding: 8px;
-        box-sizing: border-box;
-        border-radius: 4px;
-        border: 1px solid #ddd;
-      }
-      textarea.json-schema {
-        height: 150px;
-        min-height: 150px;
-        font-size: 11px;
-        font-family: monospace;
-      }
-      button {
-        background-color: #4285f4;
-        color: white;
-        padding: 8px 12px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: bold;
-      }
-      button:hover {
-        background-color: #3b78e7;
-      }
-      .alert {
-        padding: 12px;
-        margin-top: 15px;
-        display: none;
-        border-radius: 4px;
-      }
-      .alert-success {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-      }
-      .alert-error {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-      }
-      .hidden {
-        display: none;
-      }
-      .spinner {
+      #spinner {
         display: none;
         text-align: center;
+        padding: 15px;
+      }
+      .alert {
+        display: none;
         margin-top: 15px;
       }
-      .advanced-toggle {
-        cursor: pointer;
-        padding: 8px;
-        background-color: #f1f1f1;
-        border-radius: 4px;
-        margin-bottom: 10px;
-        font-weight: bold;
+      .accordion-button {
+        padding: 0.5rem 1.25rem;
+        font-size: 0.9rem;
       }
-      .advanced-toggle:hover {
-        background-color: #e7e7e7;
-      }
-      .advanced-options {
-        display: none;
-        border: 1px solid #ddd;
-        padding: 10px;
-        border-radius: 4px;
-        margin-bottom: 15px;
-      }
-      .example-button {
-        font-size: 10px;
-        padding: 4px 8px;
-        margin-top: 5px;
-        display: inline-block;
-        background-color: #f1f1f1;
-        color: #333;
-      }
-      .hint-text {
-        font-size: 11px;
-        color: #666;
-        margin-top: 5px;
+      .accordion-body {
+        padding: 1rem;
       }
     </style>
   </head>
   <body>
     <div class="container-fluid p-0">
-      <div class="row">
-        <div class="col">
-          <h4 class="mb-3">Humble Clay</h4>
-        </div>
-      </div>
+      <h4>Humble Clay</h4>
+      <p class="small text-muted">Process text with AI and extract structured data</p>
       
       <form id="promptForm">
         <div class="form-group">
-          <label for="inputRange">Input Range *</label>
-          <input type="text" id="inputRange" placeholder="e.g., A1:A10" required>
+          <label for="inputRange">Input Range <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="inputRange" placeholder="e.g., A1:A10" required>
+          <div class="hint">The range containing your input text</div>
         </div>
+        
         <div class="form-group">
-          <label for="outputColumn">Output Column *</label>
-          <input type="text" id="outputColumn" placeholder="e.g., B" required>
+          <label for="outputColumn">Output Column <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="outputColumn" placeholder="e.g., B" required>
+          <div class="hint">The column where results will be placed</div>
         </div>
         
         <div class="form-group">
           <label for="simpleField">Output Field (Optional)</label>
-          <input type="text" id="simpleField" placeholder="e.g., age: int, status: [active, pending]">
-          <div class="hint-text">Examples: company_name, age: int, is_active: bool, status: [active, pending]</div>
-        </div>
-        
-        <div class="advanced-toggle" id="advancedToggle">
-          ▶ Advanced Options
-        </div>
-        
-        <div class="advanced-options" id="advancedOptions">
-          <div class="form-group">
-            <label for="jsonSchema">Output JSON Schema (Optional)</label>
-            <textarea id="jsonSchema" class="json-schema" placeholder="Enter a valid JSON schema to define the structure of the LLM response"></textarea>
-            <button type="button" id="showExampleSchema" class="example-button">Show example</button>
-          </div>
-          <div class="form-group">
-            <label for="fieldPath">Extract Field Path (Optional)</label>
-            <input type="text" id="fieldPath" placeholder="e.g., user.name or skills[0]">
+          <input type="text" class="form-control" id="simpleField" placeholder="e.g., age: int, status: [active, pending]">
+          <div class="hint">Simplified field syntax for schema generation. Examples:<br>
+            <code>field_name</code> - Simple string field<br>
+            <code>age: int</code> - Integer field<br>
+            <code>status: [active, pending]</code> - Enum field
           </div>
         </div>
         
-        <button type="submit" id="generateButton">Generate Output</button>
+        <div class="accordion mb-3">
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="advancedOptionsHeading">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#advancedOptions" aria-expanded="false" aria-controls="advancedOptions">
+                Advanced Options
+              </button>
+            </h2>
+            <div id="advancedOptions" class="accordion-collapse collapse" aria-labelledby="advancedOptionsHeading">
+              <div class="accordion-body">
+                <div class="form-group">
+                  <label for="jsonSchema">JSON Schema (Optional)</label>
+                  <textarea class="form-control" id="jsonSchema" rows="6" placeholder='{"type": "object", "properties": {...}}' style="font-family: monospace;"></textarea>
+                  <div class="hint">Structured schema for response formatting</div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="fieldPath">Field Path (Optional)</label>
+                  <input type="text" class="form-control" id="fieldPath" placeholder="e.g., name">
+                  <div class="hint">Path to extract from the response</div>
+                </div>
+                
+                <button type="button" id="schemaExample" class="btn btn-sm btn-outline-secondary mt-2">
+                  Insert Example Schema
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary w-100">Process Range</button>
       </form>
       
-      <div class="spinner" id="spinner">
-        <img src="https://www.gstatic.com/images/icons/material/system/1x/sync_black_20dp.png" width="20" height="20">
-        Processing...
+      <div id="spinner" class="mt-3">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Processing, please wait...</p>
       </div>
       
-      <div class="alert alert-success" id="successAlert"></div>
-      <div class="alert alert-error" id="errorAlert"></div>
+      <div id="successAlert" class="alert alert-success mt-3"></div>
+      <div id="errorAlert" class="alert alert-danger mt-3"></div>
     </div>
-
-    <!-- Bootstrap Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Client-side validation and interaction -->
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
     <script>
-      // Function to get URL parameter
+      // Initialize SimpleOutputField functions from server-side
+      <?!= simpleOutputFieldInit ?>
+      
       function getUrlParameter(name) {
-        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-        var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-        var results = regex.exec(location.search);
-        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        var params = new URLSearchParams(window.location.search);
+        return params.get(name);
       }
-
-      // Function to validate JSON
+      
       function isValidJson(json) {
-        if (!json) return true; // Empty is valid
         try {
           JSON.parse(json);
           return true;
@@ -175,26 +127,16 @@
         }
       }
       
-      document.getElementById('advancedToggle').addEventListener('click', function() {
-        var options = document.getElementById('advancedOptions');
-        if (options.style.display === 'block') {
-          options.style.display = 'none';
-          this.innerHTML = '▶ Advanced Options';
-        } else {
-          options.style.display = 'block';
-          this.innerHTML = '▼ Advanced Options';
-        }
-      });
-      
-      document.getElementById('showExampleSchema').addEventListener('click', function() {
-        var example = {
+      // Insert example schema
+      document.getElementById('schemaExample').addEventListener('click', function() {
+        const example = {
           "type": "object",
           "properties": {
-            "name": { "type": "string" },
-            "age": { "type": "number" },
-            "skills": { 
-              "type": "array",
-              "items": { "type": "string" }
+            "name": {
+              "type": "string"
+            },
+            "age": {
+              "type": "integer"
             }
           },
           "required": ["name", "age"]
@@ -284,21 +226,73 @@
           }
           
           // Process simple field if provided (and advanced options aren't)
+          var schemaObj = null;
           if (simpleField && (!jsonSchema && !fieldPath)) {
-            updateSchemaFromSimpleField();
-            jsonSchema = document.getElementById('jsonSchema').value;
-            fieldPath = document.getElementById('fieldPath').value;
-          }
-          
-          // Validate schema if provided
-          if (jsonSchema && !isValidJson(jsonSchema)) {
-            showError('Invalid JSON schema. Please check your format.');
-            return;
+            try {
+              // Add debugging to check if functions exist
+              console.log('SimpleOutputField functions available:', 
+                typeof parseSimpleSyntax, 
+                typeof generateSchemaFromSyntax, 
+                typeof extractFieldPathFromSyntax);
+              
+              // Log the input
+              console.log('Processing simple field:', simpleField);
+              
+              // Check if parseSimpleSyntax is available
+              if (typeof parseSimpleSyntax !== 'function') {
+                throw new Error('parseSimpleSyntax function is not available');
+              }
+              
+              // Directly use SimpleOutputField functions instead of updating DOM
+              var parsedSyntax = parseSimpleSyntax(simpleField);
+              console.log('Parsed syntax:', parsedSyntax);
+              
+              if (parsedSyntax) {
+                // Check if generateSchemaFromSyntax is available
+                if (typeof generateSchemaFromSyntax !== 'function') {
+                  throw new Error('generateSchemaFromSyntax function is not available');
+                }
+                
+                // Generate schema directly
+                schemaObj = generateSchemaFromSyntax(parsedSyntax);
+                console.log('Generated schema:', schemaObj);
+                
+                // Check if extractFieldPathFromSyntax is available
+                if (typeof extractFieldPathFromSyntax !== 'function') {
+                  throw new Error('extractFieldPathFromSyntax function is not available');
+                }
+                
+                // Get field path directly
+                fieldPath = extractFieldPathFromSyntax(parsedSyntax);
+                console.log('Extracted field path:', fieldPath);
+                
+                // Also update the UI fields for user feedback
+                if (schemaObj) {
+                  jsonSchema = JSON.stringify(schemaObj, null, 2);
+                  document.getElementById('jsonSchema').value = jsonSchema;
+                }
+                if (fieldPath) {
+                  document.getElementById('fieldPath').value = fieldPath;
+                }
+              }
+            } catch (e) {
+              console.error('Error processing simple field:', e.message, e.stack);
+              showError('Error processing simple field: ' + e.message);
+              return;
+            }
+          } else if (jsonSchema) {
+            // Use the existing schema if provided
+            try {
+              schemaObj = JSON.parse(jsonSchema);
+            } catch (e) {
+              showError('Invalid JSON schema. Please check your format.');
+              return;
+            }
           }
           
           // Validate field path only allowed if schema is provided
-          if (fieldPath && !jsonSchema) {
-            showError('Field path can only be used when a JSON schema is provided.');
+          if (fieldPath && !schemaObj) {
+            showError('Field path can only be used when a schema is provided.');
             return;
           }
           
@@ -309,8 +303,8 @@
           document.getElementById('successAlert').style.display = 'none';
           document.getElementById('errorAlert').style.display = 'none';
           
-          // Prepare schema object if provided
-          var schemaObj = jsonSchema ? JSON.parse(jsonSchema) : null;
+          console.log('Submitting with schema:', schemaObj);
+          console.log('Submitting with field path:', fieldPath);
           
           // Call the server-side function
           google.script.run

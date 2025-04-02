@@ -9,10 +9,14 @@ function showSidebarUI() {
   // Create the HTML output from the Sidebar file
   let htmlOutput = HtmlService.createTemplateFromFile('Sidebar');
   
-  // Include the SimpleOutputField.js functions
-  htmlOutput.parseSimpleSyntax = parseSimpleSyntax;
-  htmlOutput.generateSchemaFromSyntax = generateSchemaFromSyntax;
-  htmlOutput.extractFieldPathFromSyntax = extractFieldPathFromSyntax;
+  // Expose SimpleOutputField functions to the client-side JavaScript
+  // Use eval to ensure functions are accessible in the client context
+  htmlOutput.simpleOutputFieldInit = `
+    // Make SimpleOutputField functions available globally
+    var parseSimpleSyntax = ${parseSimpleSyntax.toString()};
+    var generateSchemaFromSyntax = ${generateSchemaFromSyntax.toString()};
+    var extractFieldPathFromSyntax = ${extractFieldPathFromSyntax.toString()};
+  `;
   
   // Evaluate the template and set properties
   const html = htmlOutput.evaluate()

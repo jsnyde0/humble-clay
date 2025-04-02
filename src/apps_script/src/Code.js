@@ -87,6 +87,11 @@ function validateApiConfig() {
  */
 function processRange(inputRange, outputColumn, schema = null, fieldPath = '') {
   try {
+    // Debug logging for inputs
+    Logger.log(`[processRange] Called with: inputRange=${inputRange}, outputColumn=${outputColumn}`);
+    Logger.log(`[processRange] Schema: ${JSON.stringify(schema)}`);
+    Logger.log(`[processRange] Field path: ${fieldPath}`);
+    
     // Validate inputs
     validateRange(inputRange);
     validateOutputColumn(outputColumn);
@@ -130,6 +135,9 @@ function processRange(inputRange, outputColumn, schema = null, fieldPath = '') {
     if (fieldPath) {
       options.extractFieldPath = fieldPath;
     }
+    
+    // Debug log for options
+    Logger.log(`[processRange] Created options: ${JSON.stringify(options)}`);
 
     // Process the values using the API
     const processedValues = processRangeWithApi(values, options);
