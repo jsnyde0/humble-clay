@@ -3,6 +3,7 @@
 import os
 from typing import Type, TypeVar
 
+import httpx
 import instructor
 import openai
 from pydantic import BaseModel
@@ -70,12 +71,15 @@ async def process_with_llm(
                 # Handle unexpected response structure
                 raise Exception("Invalid response structure received from API")
 
+    except (httpx.ConnectError, httpx.ConnectTimeout) as e:
+        # Handle connection issues specifically
+        print(f"Connection error during LLM processing: {e}")
+        raise Exception(f"Connection error: {str(e)}") from e
     except openai.APIError as e:
-        # Catch specific OpenAI errors if possible, fallback to general Exception
-        # Log the error details for debugging
+        # Handle OpenAI API errors
         print(f"OpenAI API Error: {e}")
-        raise Exception(f"OpenRouter API error: {e}") from e
+        raise Exception(f"OpenRouter API error: {str(e)}") from e
     except Exception as e:
-        # Catch other potential errors during the process
+        # Handle other unexpected errors
         print(f"Error during LLM processing: {e}")
-        raise  # Re-raise the original exception
+        raise Exception(f"Unexpected error: {str(e)}") from e
