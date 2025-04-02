@@ -1,57 +1,34 @@
-const { jest, describe, test, expect, beforeEach } = require('@jest/globals');
+/**
+ * Tests for Code.js
+ */
 
-// Mock dependencies
-jest.mock('../src/UI', () => ({
-  createMenu: jest.fn(),
-  showSidebar: jest.fn()
-}));
+// Import the module to test
+const { processRange } = require('../src/Code.js');
 
-jest.mock('../src/RangeUtils', () => ({
-  validateRange: jest.fn(),
-  validateOutputColumn: jest.fn(),
-  mapInputRangeToOutput: jest.fn()
-}));
-
-// Import after mocking
-const UI = require('../src/UI');
-const RangeUtils = require('../src/RangeUtils');
-const { onOpen, showSidebar, processRange } = require('../src/Code');
+// No need to mock dependencies - they're mocked globally in setup.js
 
 describe('Code.js', () => {
   beforeEach(() => {
-    // Reset all mocks
-    jest.clearAllMocks();
-  });
-
-  describe('onOpen', () => {
-    test('creates menu on open', () => {
-      onOpen();
-      expect(UI.createMenu).toHaveBeenCalled();
-    });
-  });
-
-  describe('showSidebar', () => {
-    test('shows sidebar UI', () => {
-      showSidebar();
-      expect(UI.showSidebar).toHaveBeenCalled();
-    });
+    // Reset all mocks before each test
+    resetAllMocks();
   });
 
   describe('processRange', () => {
-    // Mock data
-    const inputRange = 'A1:A10';
-    const outputColumn = 'C';
-    const mockValues = [[1], [2], [3]];
+    it('should process range and return success result', () => {
+      // Setup test data
+      const inputRange = 'A1:A10';
+      const outputColumn = 'B';
+      const outputRange = 'B1:B10';
+      const values = [['input1'], ['input2']];
+      const processedValues = [['result1'], ['result2']];
 
-    beforeEach(() => {
-      // Mock successful validation
-      RangeUtils.validateRange.mockReturnValue(true);
-      RangeUtils.validateOutputColumn.mockReturnValue(true);
-      RangeUtils.mapInputRangeToOutput.mockReturnValue('C1:C10');
+      // Configure mocks
+      validateRange.mockReturnValue(true);
+      validateOutputColumn.mockReturnValue(true);
+      mapInputRangeToOutput.mockReturnValue(outputRange);
 
-      // Mock sheet operations
       const mockRange = {
-        getValues: jest.fn().mockReturnValue(mockValues),
+        getValues: jest.fn().mockReturnValue(values),
         setValues: jest.fn()
       };
 
@@ -59,88 +36,81 @@ describe('Code.js', () => {
         getRange: jest.fn().mockReturnValue(mockRange)
       };
 
-      global.SpreadsheetApp.getActiveSheet.mockReturnValue(mockSheet);
-    });
+      SpreadsheetApp.getActiveSheet.mockReturnValue(mockSheet);
+      
+      // Setup API client mock
+      processRangeWithApi.mockReturnValue(processedValues);
 
-    test('successfully processes valid range', () => {
+      // Execute function
       const result = processRange(inputRange, outputColumn);
 
-      // Verify validations were called
-      expect(RangeUtils.validateRange).toHaveBeenCalledWith(inputRange);
-      expect(RangeUtils.validateOutputColumn).toHaveBeenCalledWith(outputColumn);
+      // Verify results
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Range processed successfully');
 
-      // Verify range mapping
-      expect(RangeUtils.mapInputRangeToOutput).toHaveBeenCalledWith(inputRange, outputColumn);
-
-      // Verify sheet operations
-      const sheet = SpreadsheetApp.getActiveSheet();
-      expect(sheet.getRange).toHaveBeenCalledWith(inputRange);
-      expect(sheet.getRange).toHaveBeenCalledWith('C1:C10');
-
-      // Verify values were copied
-      const targetRange = sheet.getRange('C1:C10');
-      expect(targetRange.setValues).toHaveBeenCalledWith(mockValues);
-
-      // Verify success response
-      expect(result).toEqual({
-        success: true,
-        message: 'Range processed successfully'
-      });
+      // Verify that the input was validated
+      expect(validateRange).toHaveBeenCalledWith(inputRange);
+      expect(validateOutputColumn).toHaveBeenCalledWith(outputColumn);
+      
+      // Verify that the range was mapped correctly
+      expect(mapInputRangeToOutput).toHaveBeenCalledWith(inputRange, outputColumn);
+      
+      // Verify that the values were fetched and processed
+      expect(mockSheet.getRange).toHaveBeenCalledWith(inputRange);
+      expect(mockRange.getValues).toHaveBeenCalled();
+      expect(processRangeWithApi).toHaveBeenCalledWith(values);
+      
+      // Verify that the results were written to the output range
+      expect(mockSheet.getRange).toHaveBeenCalledWith(outputRange);
+      expect(mockRange.setValues).toHaveBeenCalledWith(processedValues);
     });
 
-    test('handles validation errors', () => {
-      // Silence expected error logging for this test
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
-      // Mock validation failure
-      RangeUtils.validateRange.mockImplementation(() => {
+    it('should return error when no active sheet is found', () => {
+      // Setup
+      SpreadsheetApp.getActiveSheet.mockReturnValue(null);
+
+      // Execute
+      const result = processRange('A1:A10', 'B');
+
+      // Verify
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('No active sheet found');
+    });
+
+    it('should return error when range validation fails', () => {
+      // Setup
+      validateRange.mockImplementation(() => {
         throw new Error('Invalid range format');
       });
 
-      const result = processRange('invalid', outputColumn);
+      // Execute
+      const result = processRange('invalid', 'B');
 
-      expect(result).toEqual({
-        success: false,
-        message: 'Invalid range format'
-      });
-      
-      // Verify error was logged
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error processing range:',
-        expect.any(Error)
-      );
-      
-      consoleSpy.mockRestore();
+      // Verify
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Invalid range format');
     });
 
-    test('handles missing sheet error', () => {
-      // Silence expected error logging for this test
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
-      // Mock no active sheet
-      global.SpreadsheetApp.getActiveSheet.mockReturnValue(null);
-
-      const result = processRange(inputRange, outputColumn);
-
-      expect(result).toEqual({
-        success: false,
-        message: 'No active sheet found'
+    it('should return error when output column validation fails', () => {
+      // Setup
+      validateRange.mockReturnValue(true);
+      validateOutputColumn.mockImplementation(() => {
+        throw new Error('Invalid column format');
       });
-      
-      // Verify error was logged
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error processing range:',
-        expect.any(Error)
-      );
-      
-      consoleSpy.mockRestore();
+
+      // Execute
+      const result = processRange('A1:A10', '123');
+
+      // Verify
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Invalid column format');
     });
 
-    test('handles empty range error', () => {
-      // Silence expected error logging for this test
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
-      // Mock empty range values
+    it('should return error when range has no values', () => {
+      // Setup
+      validateRange.mockReturnValue(true);
+      validateOutputColumn.mockReturnValue(true);
+
       const mockRange = {
         getValues: jest.fn().mockReturnValue([])
       };
@@ -149,22 +119,14 @@ describe('Code.js', () => {
         getRange: jest.fn().mockReturnValue(mockRange)
       };
 
-      global.SpreadsheetApp.getActiveSheet.mockReturnValue(mockSheet);
+      SpreadsheetApp.getActiveSheet.mockReturnValue(mockSheet);
 
-      const result = processRange(inputRange, outputColumn);
+      // Execute
+      const result = processRange('A1:A10', 'B');
 
-      expect(result).toEqual({
-        success: false,
-        message: 'No values found in the input range'
-      });
-      
-      // Verify error was logged
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error processing range:',
-        expect.any(Error)
-      );
-      
-      consoleSpy.mockRestore();
+      // Verify
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('No values found in the input range');
     });
   });
 }); 

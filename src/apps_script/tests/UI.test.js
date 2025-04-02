@@ -1,7 +1,16 @@
-const { jest, describe, test, expect } = require('@jest/globals');
+/**
+ * Tests for UI.js
+ */
+
+// Import the module to test
 const UI = require('../src/UI');
 
 describe('UI', () => {
+  beforeEach(() => {
+    // Reset all mocks before each test
+    resetAllMocks();
+  });
+  
   describe('showSidebar', () => {
     test('creates and shows sidebar with correct settings', () => {
       const mockHtmlOutput = {
@@ -14,15 +23,13 @@ describe('UI', () => {
       };
 
       // Mock HtmlService
-      global.HtmlService = {
-        createHtmlOutputFromFile: jest.fn().mockReturnValue(mockHtmlOutput)
-      };
+      HtmlService.createHtmlOutputFromFile.mockReturnValue(mockHtmlOutput);
 
       // Mock SpreadsheetApp.getUi()
-      global.SpreadsheetApp.getUi.mockReturnValue(mockUi);
+      SpreadsheetApp.getUi.mockReturnValue(mockUi);
 
       // Call the method
-      UI.showSidebar();
+      UI.showSidebarUI();
 
       // Verify HTML creation
       expect(HtmlService.createHtmlOutputFromFile).toHaveBeenCalledWith('Sidebar');
@@ -47,7 +54,7 @@ describe('UI', () => {
       };
 
       // Mock SpreadsheetApp.getUi()
-      global.SpreadsheetApp.getUi.mockReturnValue(mockUi);
+      SpreadsheetApp.getUi.mockReturnValue(mockUi);
 
       // Call the method
       UI.createMenu();
@@ -56,7 +63,7 @@ describe('UI', () => {
       expect(mockUi.createMenu).toHaveBeenCalledWith('Humble Clay');
       expect(mockMenu.addItem).toHaveBeenCalledWith('Open Sidebar', 'showSidebar');
       expect(mockMenu.addSeparator).toHaveBeenCalled();
-      expect(mockMenu.addItem).toHaveBeenCalledWith('Configure API', 'showApiConfig');
+      expect(mockMenu.addItem).toHaveBeenCalledWith('Configure API', 'showConfigDialog');
       expect(mockMenu.addItem).toHaveBeenCalledWith('Validate API Configuration', 'validateApiConfig');
       expect(mockMenu.addToUi).toHaveBeenCalled();
     });
@@ -72,7 +79,7 @@ describe('UI', () => {
       };
 
       // Mock SpreadsheetApp.getUi()
-      global.SpreadsheetApp.getUi.mockReturnValue(mockUi);
+      SpreadsheetApp.getUi.mockReturnValue(mockUi);
 
       // Call the method
       const errorMessage = 'Test error message';
@@ -80,6 +87,27 @@ describe('UI', () => {
 
       // Verify error display
       expect(mockUi.alert).toHaveBeenCalledWith('Error', errorMessage, mockUi.ButtonSet.OK);
+    });
+  });
+  
+  describe('showMessage', () => {
+    test('shows information message in modal dialog', () => {
+      const mockUi = {
+        alert: jest.fn(),
+        ButtonSet: {
+          OK: 'OK'
+        }
+      };
+
+      // Mock SpreadsheetApp.getUi()
+      SpreadsheetApp.getUi.mockReturnValue(mockUi);
+
+      // Call the method
+      const infoMessage = 'Test info message';
+      UI.showMessage(infoMessage);
+
+      // Verify message display
+      expect(mockUi.alert).toHaveBeenCalledWith('Success', infoMessage, mockUi.ButtonSet.OK);
     });
   });
 }); 

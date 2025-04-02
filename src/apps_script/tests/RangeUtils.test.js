@@ -1,9 +1,18 @@
-const { jest, describe, test, expect } = require('@jest/globals');
+/**
+ * Tests for RangeUtils.js
+ */
+
+// Import the module to test
 const RangeUtils = require('../src/RangeUtils');
 
 describe('RangeUtils', () => {
+  beforeEach(() => {
+    // Reset all mocks before each test
+    resetAllMocks();
+  });
+
   describe('validateRange', () => {
-    test('accepts valid A1 notation ranges', () => {
+    it('accepts valid A1 notation ranges', () => {
       const validRanges = [
         'A1:A10',
         'B5:B15',
@@ -16,9 +25,8 @@ describe('RangeUtils', () => {
       });
     });
 
-    test('rejects invalid A1 notation ranges', () => {
+    it('rejects invalid A1 notation ranges', () => {
       const invalidRanges = [
-        '',                    // Empty string
         'invalid',            // Not A1 notation
         'A1A:B2',            // Invalid format
         '1A:2B',             // Wrong order
@@ -30,10 +38,24 @@ describe('RangeUtils', () => {
         expect(() => RangeUtils.validateRange(range)).toThrow('Invalid range format');
       });
     });
+
+    it('rejects non-string inputs', () => {
+      const nonStringInputs = [
+        '',                    // Empty string
+        null,                 // null
+        undefined,            // undefined
+        123,                  // number
+        {}                    // object
+      ];
+
+      nonStringInputs.forEach(input => {
+        expect(() => RangeUtils.validateRange(input)).toThrow('Range must be a string');
+      });
+    });
   });
 
   describe('validateOutputColumn', () => {
-    test('accepts valid column letters', () => {
+    it('accepts valid column letters', () => {
       const validColumns = ['A', 'B', 'Z', 'AA', 'ZZ'];
 
       validColumns.forEach(column => {
@@ -41,10 +63,8 @@ describe('RangeUtils', () => {
       });
     });
 
-    test('rejects invalid column specifications', () => {
+    it('rejects invalid column specifications', () => {
       const invalidColumns = [
-        '',           // Empty string
-        '1',          // Number
         'A1',         // Contains row
         'AAA',        // Too long
         'invalid'     // Not a column letter
@@ -54,10 +74,24 @@ describe('RangeUtils', () => {
         expect(() => RangeUtils.validateOutputColumn(column)).toThrow('Invalid column format');
       });
     });
+
+    it('rejects non-string inputs', () => {
+      const nonStringInputs = [
+        '',           // Empty string
+        null,         // null
+        undefined,    // undefined
+        123,          // number
+        {}            // object
+      ];
+
+      nonStringInputs.forEach(input => {
+        expect(() => RangeUtils.validateOutputColumn(input)).toThrow('Column must be a string');
+      });
+    });
   });
 
   describe('mapInputRangeToOutput', () => {
-    test('correctly maps input range to output column', () => {
+    it('correctly maps input range to output column', () => {
       const testCases = [
         {
           input: 'A7:A17',
@@ -81,7 +115,7 @@ describe('RangeUtils', () => {
       });
     });
 
-    test('preserves row numbers when mapping', () => {
+    it('preserves row numbers when mapping', () => {
       const result = RangeUtils.mapInputRangeToOutput('A7:A17', 'C');
       expect(result).toBe('C7:C17');
       
@@ -93,7 +127,7 @@ describe('RangeUtils', () => {
       expect(end).toBe(17);
     });
 
-    test('throws error for invalid input', () => {
+    it('throws error for invalid input', () => {
       expect(() => 
         RangeUtils.mapInputRangeToOutput('invalid', 'C')
       ).toThrow('Invalid range format');

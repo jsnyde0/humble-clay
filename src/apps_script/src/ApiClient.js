@@ -40,6 +40,36 @@ function setApiBaseUrl(url) {
 }
 
 /**
+ * Gets API key from script properties
+ * @returns {string|null} The API key or null if not set
+ */
+function getApiKey() {
+  return PropertiesService.getScriptProperties().getProperty('HUMBLE_CLAY_API_KEY');
+}
+
+/**
+ * Sets API key in script properties
+ * @param {string} apiKey - The API key to store
+ */
+function setApiKey(apiKey) {
+  if (!validateApiKey(apiKey)) {
+    throw new Error('Invalid API key format');
+  }
+  PropertiesService.getScriptProperties().setProperty('HUMBLE_CLAY_API_KEY', apiKey);
+}
+
+/**
+ * Loads API configuration from script properties
+ * @returns {Object} API configuration object
+ */
+function loadApiConfig() {
+  return {
+    apiKey: getApiKey(),
+    apiUrl: getApiBaseUrl()
+  };
+}
+
+/**
  * Formats and validates the request payload
  * @param {string} inputText - The text to process
  * @param {Object} options - Additional options for the API call
@@ -176,7 +206,7 @@ function shouldRetry(error) {
  */
 function makeApiRequest(inputText, options = {}) {
   // Get API key and base URL from script properties
-  const apiKey = PropertiesService.getScriptProperties().getProperty('HUMBLE_CLAY_API_KEY');
+  const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('API key not configured. Please set up your API key in the configuration.');
   }
@@ -237,7 +267,7 @@ function processBatch(batch, options = {}) {
   }
 
   // Get API key and base URL from script properties
-  const apiKey = PropertiesService.getScriptProperties().getProperty('HUMBLE_CLAY_API_KEY');
+  const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('API key not configured. Please set up your API key in the configuration.');
   }
@@ -344,16 +374,22 @@ function processRangeWithApi(values, options = {}) {
   );
 }
 
-// Export functions for testing
+// Only export for tests
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    makeApiRequest,
-    validateApiKey,
-    processRangeWithApi,
-    formatRequestPayload,
-    handleApiResponse,
     API_CONFIG,
     getApiBaseUrl,
-    setApiBaseUrl
+    setApiBaseUrl,
+    getApiKey,
+    setApiKey,
+    loadApiConfig,
+    formatRequestPayload,
+    handleApiResponse,
+    retryWithBackoff,
+    shouldRetry,
+    makeApiRequest,
+    validateApiKey,
+    processBatch,
+    processRangeWithApi
   };
 } 
