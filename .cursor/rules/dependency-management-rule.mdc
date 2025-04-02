@@ -1,5 +1,5 @@
 ---
-description: Rule to manage dependencies with pyproject.toml and uv
+description: Rule to manage dependencies
 globs: 
 alwaysApply: false
 ---

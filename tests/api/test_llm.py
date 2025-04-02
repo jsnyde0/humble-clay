@@ -1,9 +1,12 @@
 """Tests for LLM processing utilities."""
 
+from typing import List
 from unittest.mock import AsyncMock
 
 import httpx
+import openai
 import pytest
+from pydantic import BaseModel
 
 from src.api.llm import process_with_llm
 
@@ -11,69 +14,138 @@ from src.api.llm import process_with_llm
 pytestmark = pytest.mark.asyncio
 
 
-@pytest.fixture
-def mock_httpx_client(mocker):  # Renamed from mock_client to avoid conflict
-    """Fixture to mock httpx.AsyncClient."""
-    mock_resp = AsyncMock(spec=httpx.Response)
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "choices": [{"message": {"content": "Mocked LLM response"}}]
-    }
-
-    mock_post = AsyncMock(return_value=mock_resp)
-    mock_async_client = mocker.patch("httpx.AsyncClient", autospec=True)
-    # Configure the __aenter__ return value which is used in 'async with'
-    mock_async_client.return_value.__aenter__.return_value.post = mock_post
-    return mock_post  # Return the mock_post to check calls
+# --- Add Pydantic Model for Instructor Test ---
+class UserInfo(BaseModel):
+    name: str
+    age: int
 
 
-async def test_process_with_llm_no_schema(mock_httpx_client):
-    """Test process_with_llm sends correct payload without schema."""
-    await process_with_llm("Test prompt")
-
-    mock_httpx_client.assert_called_once()
-    call_args, call_kwargs = mock_httpx_client.call_args
-    sent_payload = call_kwargs.get("json", {})
-
-    assert "response_format" not in sent_payload
-    assert sent_payload["messages"] == [{"role": "user", "content": "Test prompt"}]
-    assert sent_payload["model"] == "google/gemini-pro"
+# --- Add Pydantic Model for Integration Test ---
+class Person(BaseModel):
+    name: str
+    age: int
 
 
-async def test_process_with_llm_with_schema(mock_httpx_client):
-    """Test process_with_llm passes response_format correctly."""
-    sample_schema_param = {
-        "type": "json_schema",
-        "json_schema": {"name": "test", "schema": {"type": "string"}},
-    }
+# ---------------------------------------------
 
-    # We need to modify process_with_llm signature first for this test to be valid
-    # For now, let's assume it takes response_format as an optional arg
-    # This test SHOULD FAIL with TypeError until process_with_llm is modified
 
-    # Call the function with the new argument (this will cause TypeError initially)
-    await process_with_llm("Schema prompt", response_format=sample_schema_param)
+# Helper to create a mock OpenAI ChatCompletion response object
+# Needs refining based on actual OpenAI object structure if tests fail
+def create_mock_completion(content: str) -> AsyncMock:
+    mock_message = AsyncMock()
+    mock_message.content = content
+    mock_choice = AsyncMock()
+    mock_choice.message = mock_message
+    mock_completion = AsyncMock()
+    mock_completion.choices = [mock_choice]
+    return mock_completion
 
-    # Assertions now active - will only be reached after function signature is fixed
-    mock_httpx_client.assert_called_once()
-    call_args, call_kwargs = mock_httpx_client.call_args
-    sent_payload = call_kwargs.get("json", {})
 
-    assert "response_format" in sent_payload
-    assert sent_payload["response_format"] == sample_schema_param
-    assert sent_payload["messages"] == [{"role": "user", "content": "Schema prompt"}]
-    assert sent_payload["model"] == "google/gemini-pro"
+async def test_process_with_llm_no_schema(mocker):
+    """Test process_with_llm returns a string using the OpenAI client."""
+    # Mock the OpenAI client call
+    mock_openai_create = mocker.patch(
+        "src.api.llm.client.chat.completions.create", new_callable=AsyncMock
+    )
+
+    # Configure mock to return a simulated OpenAI response object with string content
+    expected_content = "Mocked LLM response"
+    mock_openai_create.return_value = create_mock_completion(expected_content)
+
+    # Call the function without a response_model
+    result = await process_with_llm("Test prompt")
+
+    # Assertions
+    assert result == expected_content
+
+    # Assert the mock was called correctly (without response_model)
+    mock_openai_create.assert_awaited_once_with(
+        model="google/gemini-2.0-flash-lite-001",  # Default model
+        messages=[{"role": "user", "content": "Test prompt"}],
+        # No response_model argument expected here
+    )
+
+
+async def test_process_with_llm_with_instructor(mocker):
+    """Test process_with_llm returns a Pydantic model using Instructor."""
+    # Mock the actual method called by the patched client
+    # The path depends on where 'client' is defined in src.api.llm
+    mock_openai_create = mocker.patch(
+        "src.api.llm.client.chat.completions.create", new_callable=AsyncMock
+    )
+
+    # Expected data
+    expected_data = UserInfo(name="Test User", age=30)
+
+    # Instructor expects the *Pydantic object* itself in the return value when mocking,
+    # not the raw JSON string in the message content.
+    # It simulates the parsing process.
+    mock_openai_create.return_value = expected_data
+
+    # Call the function, passing the Pydantic model
+    result = await process_with_llm("Extract user info", response_model=UserInfo)
+
+    # Assertions
+    assert isinstance(result, UserInfo)
+    assert result == expected_data  # Compare model instances
+
+    # Assert the mock was called correctly
+    mock_openai_create.assert_awaited_once_with(
+        model="google/gemini-2.0-flash-lite-001",  # Default model
+        messages=[{"role": "user", "content": "Extract user info"}],
+        response_model=UserInfo,
+    )
 
 
 async def test_process_with_llm_handles_api_error(mocker):
     """Test process_with_llm raises exception on API error."""
-    mock_resp = AsyncMock(spec=httpx.Response)
-    mock_resp.status_code = 500
-    mock_resp.text = "Server error"
+    # Mock the client call to raise an OpenAI APIError
+    mock_openai_create = mocker.patch(
+        "src.api.llm.client.chat.completions.create", new_callable=AsyncMock
+    )
 
-    mock_post = AsyncMock(return_value=mock_resp)
-    mock_async_client = mocker.patch("httpx.AsyncClient", autospec=True)
-    mock_async_client.return_value.__aenter__.return_value.post = mock_post
+    # Correctly instantiate APIError (may need httpx request mock if constructor needs it)
+    # Let's try with a simple mocked request first.
+    mock_request = mocker.Mock(spec=httpx.Request)
+    mock_openai_create.side_effect = openai.APIError(
+        "Simulated API Error",
+        request=mock_request,  # Use 'request' argument
+        body=None,
+    )
 
-    with pytest.raises(Exception, match="OpenRouter API error: Server error"):
+    with pytest.raises(Exception, match="OpenRouter API error: Simulated API Error"):
         await process_with_llm("Error prompt")
+
+
+# --- Integration Test ---
+@pytest.mark.llm  # Mark as integration test requiring LLM
+async def test_process_with_llm_instructor_integration():
+    """Integration test for process_with_llm with Instructor to extract structured data."""
+    input_text = "Create Person objects for John Doe (age 30) and Jane Smith (age 25)."
+
+    print(f"\nRunning Instructor integration test with input: '{input_text}'")
+
+    try:
+        # Call the actual function, targeting List[Person]
+        result = await process_with_llm(prompt=input_text, response_model=List[Person])
+
+        print(f"Raw result from process_with_llm: {result}")
+
+        # Assertions
+        assert isinstance(result, list), (
+            f"Expected result type list, got {type(result)}"
+        )
+        assert len(result) > 0, "Expected at least one Person object to be extracted"
+        assert all(isinstance(p, Person) for p in result), (
+            "Not all items in result are Person instances"
+        )
+
+        print("Instructor Integration Test Passed: Extracted Person objects:")
+        for person in result:
+            print(f" - {person.model_dump_json()}")
+
+    except Exception as e:
+        pytest.fail(f"Instructor integration test failed with error: {e}")
+
+
+# --- End Integration Test ---

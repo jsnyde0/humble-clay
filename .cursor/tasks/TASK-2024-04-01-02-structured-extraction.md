@@ -14,25 +14,25 @@ Dependencies: TASK-2024-04-01-01 ✅
 *   [ ] User can optionally provide valid JSON Schema via UI text area.
 *   [ ] UI schema text area is pre-filled with a default example.
 *   [ ] User can optionally provide a field path string for extraction.
-*   [ ] **Backend:** API accepts optional JSON Schema per prompt.
+*   [x] **Backend:** API accepts optional JSON Schema per prompt. (Handled via response_model)
 *   [ ] **Backend:** API accepts optional `extract_field_path` per prompt.
-*   [ ] **Backend:** API generates output conforming to schema (if provided).
+*   [x] **Backend:** API generates output conforming to schema (if provided). (Implemented via Instructor)
 *   [ ] **Backend:** API extracts field based on path (if provided).
 *   [ ] **Backend:** API returns appropriate errors for schema/path issues.
 *   [ ] System calls `/prompts` for sidebar ops (batching prompts, schema, path).
 *   [ ] System displays API response (`response` field) directly in target cells.
 *   [ ] Sidebar inputs (Range, Column, Schema, Path) persist after generation.
-*   [ ] Feature implemented using Test-Driven Development principles (tests written prior to implementation code).
+*   [x] Feature implemented using Test-Driven Development principles (tests written prior to implementation code). (Backend part)
 
 ## Implementation Steps
 
 1.  **Backend API Changes:**
-    *   [x] Modify `PromptRequest` and `MultiplePromptsRequest` models to include optional `response_format` (containing schema) and `extract_field_path` fields. (2024-04-01)
+    *   [x] Modify `PromptRequest` and `MultiplePromptsRequest` models to include optional `response_format` (containing schema) and `extract_field_path` fields. (2024-04-01) - Note: `response_format` now handled by `response_model` argument.
     *   [x] Modify `PromptResponse` and `MultiplePromptsResponse` models to handle flexible `response` type (`str | int | float | bool | None`) and standard `error` messages. (2024-04-01)
-    *   [ ] Implement schema enforcement logic in the LLM interaction (e.g., using `instructor` or specific LLM features).
+    *   [x] Implement schema enforcement logic in the LLM interaction (using Instructor). (2024-04-02)
     *   [ ] Implement field path extraction logic (to be run after successful JSON generation).
-    *   [ ] Implement error handling and specific error messages for schema/path failures.
-    *   [ ] Add/update backend unit and integration tests for these changes.
+    *   [x] Implement error handling and specific error messages for schema/path failures (Basic API error handling added). (2024-04-02)
+    *   [x] Add/update backend unit and integration tests for these changes (Instructor tests added). (2024-04-02)
 
 2.  **Apps Script UI Changes (`Sidebar.html` and associated client-side JS):**
     *   [ ] Add multi-line text area for "Output JSON Schema (Optional)".
@@ -70,5 +70,6 @@ Dependencies: TASK-2024-04-01-01 ✅
 
 ## Open Questions / Considerations
 
-*   Finalize backend implementation strategy (schema enforcement library, error details).
+*   Finalize backend implementation strategy (schema enforcement library, error details). - Decision: Using Instructor.
 *   Finalize specific error codes/messages written to cells. 
+*   Note: Switched from attempting Marvin (unstable during testing) to Instructor for schema enforcement. 

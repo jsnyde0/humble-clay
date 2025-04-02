@@ -1,39 +1,81 @@
-"""LLM processing utilities."""
+"""LLM processing utilities using Instructor and OpenAI client for OpenRouter."""
 
 import os
-from typing import Any, Dict
+from typing import Type, TypeVar
 
-import httpx
+import instructor
+import openai
+from pydantic import BaseModel
+
+# Define a TypeVar for the response model
+T = TypeVar("T", bound=BaseModel)
+
+# Configure OpenAI client for OpenRouter
+# Ensure OPENROUTER_API_KEY is set in your environment
+client = instructor.patch(
+    openai.AsyncOpenAI(
+        base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        api_key=os.getenv("OPENROUTER_API_KEY"),
+        default_headers={"HTTP-Referer": "https://github.com/jsnyde0/humble-clay"},
+    ),
+    mode=instructor.Mode.JSON,  # Use JSON mode for Pydantic models
+)
 
 
 async def process_with_llm(
-    prompt: str, response_format: Dict[str, Any] | None = None
-) -> str:
-    """Process prompt with OpenRouter API using Gemini Flash 2.0 Lite."""
+    prompt: str,
+    response_model: Type[T] | None = None,
+    model: str = "google/gemini-2.0-flash-lite-001",  # Added model parameter
+) -> T | str:
+    """Process prompt with OpenRouter API, optionally returning a Pydantic model.
+
+    Args:
+        prompt: The user prompt to send to the LLM.
+        response_model: Optional Pydantic model to structure the response.
+        model: The model identifier to use (default: google/gemini-2.0-flash-lite-001).
+
+    Returns:
+        If response_model is provided, returns an instance of that model.
+        Otherwise, returns the raw string content from the LLM response.
+
+    Raises:
+        Exception: If the API key is not configured or if the API call fails.
+    """
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
+        # Consider a more specific exception type
         raise Exception("OpenRouter API key not configured")
 
-    payload = {
-        "model": "google/gemini-pro",
-        "messages": [{"role": "user", "content": prompt}],
-    }
+    messages = [{"role": "user", "content": prompt}]
 
-    if response_format:
-        payload["response_format"] = response_format
+    try:
+        if response_model:
+            # Use instructor patching to get a Pydantic model back
+            response = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                response_model=response_model,
+            )
+            return response
+        else:
+            # Standard call for string response
+            response = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+            )
+            # Ensure we handle the case where the response might be empty or malformed
+            if response.choices and response.choices[0].message:
+                return response.choices[0].message.content or ""
+            else:
+                # Handle unexpected response structure
+                raise Exception("Invalid response structure received from API")
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "HTTP-Referer": "https://github.com/jsnyde0/humble-clay",
-            },
-            json=payload,
-        )
-
-        if response.status_code != 200:
-            raise Exception(f"OpenRouter API error: {response.text}")
-
-        result = response.json()
-        return result["choices"][0]["message"]["content"]
+    except openai.APIError as e:
+        # Catch specific OpenAI errors if possible, fallback to general Exception
+        # Log the error details for debugging
+        print(f"OpenAI API Error: {e}")
+        raise Exception(f"OpenRouter API error: {e}") from e
+    except Exception as e:
+        # Catch other potential errors during the process
+        print(f"Error during LLM processing: {e}")
+        raise  # Re-raise the original exception
