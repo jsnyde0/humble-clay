@@ -20,7 +20,9 @@ def test_prompt_endpoint_accepts_valid_input(
     data = response.json()
     assert "response" in data
     assert data["response"] == "Mocked LLM response"
-    mock_llm.assert_called_once_with("Test prompt")
+    mock_llm.assert_called_once()
+    args, kwargs = mock_llm.call_args
+    assert args[0] == "Test prompt"
 
 
 def test_prompt_endpoint_accepts_empty_prompt(
@@ -35,7 +37,9 @@ def test_prompt_endpoint_accepts_empty_prompt(
     assert response.status_code == 200
     data = response.json()
     assert data.get("response") == "Processed empty prompt"
-    mock_llm.assert_called_once_with("")
+    mock_llm.assert_called_once()
+    args, kwargs = mock_llm.call_args
+    assert args[0] == ""
 
 
 def test_prompt_endpoint_requires_prompt_field(

@@ -59,6 +59,11 @@ def test_valid_api_key(client: TestClient, api_key: str, mocker: Any) -> None:
     )
     assert response.status_code == 200
     assert response.json()["response"] == "test response"
+    # Verify the function was called
+    mock_llm.assert_called_once()
+    # Verify the prompt parameter
+    args, kwargs = mock_llm.call_args
+    assert args[0] == "test"
 
 
 def test_multiple_prompts_with_auth(
