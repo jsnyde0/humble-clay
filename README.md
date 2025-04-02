@@ -84,6 +84,25 @@ function callHumbleClay(prompt) {
 }
 ```
 
+### Output Field Simplification
+
+The Google Sheets add-on now supports simplified syntax for output field definition:
+
+```
+// Simple field without type (defaults to string)
+field_name
+
+// Field with explicit type
+age: int
+price: float
+is_active: bool
+
+// Enum field with allowed values
+status: [active, pending, completed]
+```
+
+This simplified syntax automatically generates the appropriate JSON schema and field extraction path, making it easier to extract structured data without writing complex schemas manually.
+
 ## Development
 
 ### Running Tests
