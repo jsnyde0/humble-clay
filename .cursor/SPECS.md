@@ -17,3 +17,5 @@
 ## UI Specifications
 - [Simple Output Field](specs/ui/simple_output_field.md)
   - Status: Not Started 
+- [Prompt Input Field](specs/ui/prompt_input_field.md)
+  - Status: Not Started 
