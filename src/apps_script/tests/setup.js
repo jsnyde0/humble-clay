@@ -87,7 +87,11 @@ global.HtmlService = {
 global.UrlFetchApp = {
   fetch: jest.fn().mockReturnValue({
     getResponseCode: jest.fn().mockReturnValue(200),
-    getContentText: jest.fn().mockReturnValue('{"response":"test","status":"success"}')
+    getContentText: jest.fn().mockReturnValue(JSON.stringify({
+      responses: [
+        { response: "test", status: "success" }
+      ]
+    }))
   })
 };
 

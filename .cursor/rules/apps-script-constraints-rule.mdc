@@ -3,6 +3,7 @@ description: Reminds about Google Apps Script (GAS) constraints when working in 
 globs: src/apps_script/**/*.js
 alwaysApply: false
 ---
+\
 ---
 type: Auto Attached
 description: Reminds about Google Apps Script (GAS) constraints when working in the apps_script directory.
@@ -16,9 +17,9 @@ Rule for developing code that works both in Google Apps Script environment and i
 name: apps_script_constraints
 filters:
   - type: file_change
-    pattern: "src/apps_script/.*\\.(js|gs|html)$"
+    pattern: "src/apps_script/.*\\\\.(js|gs|html)$"
   - type: file_create
-    pattern: "src/apps_script/.*\\.(js|gs|html)$"
+    pattern: "src/apps_script/.*\\\\.(js|gs|html)$"
   - type: command
     pattern: "test"
 
@@ -26,51 +27,48 @@ actions:
   - type: react
     event: "file_change"
     conditions:
-      - pattern: "src/apps_script/.*\\.(js|gs)$"
+      - pattern: "src/apps_script/.*\\\\.(js|gs)$"
     action: |
       # Check Apps Script file compatibility
-      
+
       When modifying Apps Script files, I'll ensure:
-      
-      1. **Export Pattern:** All files use the conditional export pattern:
+
+      1. **Conditional Export Pattern:** All files needing testing use the conditional export pattern AT THE END:
          ```javascript
          // Only export for tests
          if (typeof module !== 'undefined' && module.exports) {
            module.exports = {
-             // functions to export
+             myFunction,
+             anotherFunction
+             // DO NOT export internal constants unless absolutely needed for testing
            };
          }
          ```
-         
-      2. **No ES6 Module Features:** Avoiding `import`/`export` statements, as Apps Script doesn't support them
-      
-      3. **Google Services:** Using Google services directly in Apps Script code but providing mock alternatives for tests
-      
-      4. **Global Namespace:** Being careful with function names to avoid conflicts in the global namespace
-      
-      5. **Testing Structure:** Ensuring test files properly mock Google services:
-         ```javascript
-         // At the top of test files
-         const mockSpreadsheetApp = require('../__mocks__/SpreadsheetApp');
-         global.SpreadsheetApp = mockSpreadsheetApp;
-         ```
-      
+
+      2. **No ES6 Module Features:** Avoiding `import`/`export` statements within the main code body.
+
+      3. **Google Services:** Using Google services directly (e.g., `SpreadsheetApp.getActiveSheet()`). These will be mocked globally in `tests/setup.js`.
+
+      4. **Global Namespace:** Functions defined globally in any `.js`/`.gs` file are available everywhere else. Be mindful of naming conflicts.
+
+      5. **Testing Structure:** Ensure tests rely on the global environment created by `tests/setup.js` (see 'test setup' action).
+
       These checks help maintain compatibility between Apps Script and testing environments.
 
   - type: react
-    event: "file_create" 
+    event: "file_create"
     conditions:
-      - pattern: "src/apps_script/.*\\.(js|gs)$"
+      - pattern: "src/apps_script/.*\\\\.(js|gs)$"
     action: |
       # Add Apps Script compatibility template to new file
-      
+
       For new Apps Script files, I'll suggest this template pattern:
-      
+
       ```javascript
       /**
        * [Filename] - [Brief description]
        */
-      
+
       /**
        * [Function description]
        * @param {type} param - Parameter description
@@ -78,12 +76,15 @@ actions:
        */
       function myFunction(param) {
         // Implementation
+        Logger.log('Executing myFunction');
+        const scriptProps = PropertiesService.getScriptProperties();
+        // ... use GAS services ...
         return result;
       }
-      
+
       // Additional functions...
-      
-      // Only export for tests
+
+      // Only export for tests (at the end of the file)
       if (typeof module !== 'undefined' && module.exports) {
         module.exports = {
           myFunction
@@ -91,175 +92,185 @@ actions:
         };
       }
       ```
-      
-      This template ensures the file works both in Apps Script environment and in tests.
+
+      This template ensures the file works both in Apps Script environment and can be prepared for testing via `tests/setup.js`.
 
   - type: react
     conditions:
       - pattern: "test setup|test help|apps script test"
     action: |
-      # Provide guidance on Apps Script testing setup
-      
-      To properly test Apps Script code:
-      
-      ## 1. Create a Centralized Setup File
-      
-      Create a setup.js file that provides a global environment:
-      
-      ```javascript
-      // tests/setup.js
-      
-      // Mock basic Google services
-      global.SpreadsheetApp = {
-        getActiveSheet: jest.fn().mockReturnValue({
-          getRange: jest.fn().mockReturnValue({
-            getValues: jest.fn().mockReturnValue([['test']]),
-            setValues: jest.fn()
-          })
-        }),
-        getUi: jest.fn().mockReturnValue({
-          createMenu: jest.fn().mockReturnThis(),
-          addItem: jest.fn().mockReturnThis(),
-          addSeparator: jest.fn().mockReturnThis(),
-          addToUi: jest.fn()
-        })
-      };
-      
-      global.PropertiesService = {
-        getScriptProperties: jest.fn().mockReturnValue({
-          getProperty: jest.fn(),
-          setProperty: jest.fn()
-        })
-      };
-      
-      global.HtmlService = {
-        createHtmlOutputFromFile: jest.fn().mockReturnValue({
-          setTitle: jest.fn().mockReturnThis(),
-          setWidth: jest.fn().mockReturnThis()
-        })
-      };
-      
-      global.UrlFetchApp = {
-        fetch: jest.fn().mockReturnValue({
-          getResponseCode: jest.fn().mockReturnValue(200),
-          getContentText: jest.fn().mockReturnValue('{"response":"test"}')
-        })
-      };
-      
-      // Import actual module functions and expose them globally
-      const RangeUtils = require('../src/RangeUtils');
-      global.validateRange = jest.fn(RangeUtils.validateRange);
-      global.validateOutputColumn = jest.fn(RangeUtils.validateOutputColumn);
-      global.mapInputRangeToOutput = jest.fn(RangeUtils.mapInputRangeToOutput);
-      
-      // Import more modules as needed
-      const UI = require('../src/UI');
-      global.showSidebarUI = jest.fn(UI.showSidebarUI);
-      global.createMenu = jest.fn(UI.createMenu);
-      
-      // Helper to reset all mocks between tests
-      global.resetAllMocks = () => {
-        jest.clearAllMocks();
-        // Reset specific mocks as needed
-        global.validateRange.mockClear();
-        global.validateOutputColumn.mockClear();
-        global.mapInputRangeToOutput.mockClear();
-      };
-      ```
-      
-      ## 2. Set Up Jest Config
-      
+      # Provide guidance on Apps Script testing setup (Updated)
+
+      To properly test Apps Script code using Jest:
+
+      ## 1. Configure `jest.config.js` Correctly
+
+      Use these key settings:
+
       ```javascript
       // jest.config.js
       module.exports = {
-        setupFiles: ['./tests/setup.js'],
+        // Use 'node' environment
         testEnvironment: 'node',
-        testMatch: ['**/tests/**/*.test.js']
+
+        // Crucially, use `setupFiles` (NOT `setupFilesAfterEnv`)
+        // This runs setup.js *before* the test environment is fully initialized,
+        // allowing us to establish the global mocks first.
+        setupFiles: ['./tests/setup.js'],
+
+        testMatch: ['**/tests/**/*.test.js'],
+        // Other configurations like coverage, roots etc.
+        roots: ["<rootDir>/src", "<rootDir>/tests"],
+        verbose: true,
+        clearMocks: true,
       };
       ```
-      
-      ## 3. Write Tests Using Global Mocks
-      
+
+      ## 2. Create a Centralized `setup.js` for Global Simulation
+
+      The `setup.js` file simulates the GAS global environment. Its role is critical:
+
       ```javascript
-      // Example test
-      const { processRange } = require('../src/Code');
-      
-      describe('processRange', () => {
+      // tests/setup.js
+
+      // --- DO NOT import Jest globals like describe, it, expect, jest, beforeEach ---
+      // --- They are already globally available via the Jest test environment! ---
+      // --- Importing them here (e.g., via require('@jest/globals')) will cause errors. ---
+
+      // Mock basic Google services globally
+      // Use the globally available `jest` object for mocking
+      global.SpreadsheetApp = {
+        getActiveSheet: jest.fn().mockReturnValue({
+           getRange: jest.fn().mockReturnValue({
+             getValues: jest.fn().mockReturnValue([['test']]),
+             setValues: jest.fn()
+           })
+        }),
+        getUi: jest.fn().mockReturnValue({ /* ...mock details... */ })
+        // ... other SpreadsheetApp mocks
+      };
+      global.PropertiesService = {
+        getScriptProperties: jest.fn().mockReturnValue({
+           getProperty: jest.fn(),
+           setProperty: jest.fn(),
+           deleteProperty: jest.fn()
+           // ... etc
+        })
+      };
+      // ... mock other GAS services (UrlFetchApp, HtmlService, Logger, etc.)
+
+
+      // --- Load functions from your source files ---
+      // Use `require` instrumentally here ONLY to get access to the source functions
+      // exported via the conditional pattern. This does NOT mean `require` works
+      // inside the simulated GAS runtime.
+      const RangeUtils = require('../src/RangeUtils'); // Assumes RangeUtils.js has the export block
+      const ApiClient = require('../src/ApiClient');   // Assumes ApiClient.js has the export block
+      // ... require other source files needed
+
+      // --- Make source functions global (wrapped with jest.fn) ---
+      // This mimics GAS's global scope for functions, making them available in tests.
+      global.validateRange = jest.fn(RangeUtils.validateRange);
+      global.validateOutputColumn = jest.fn(RangeUtils.validateOutputColumn);
+      global.makeApiRequest = jest.fn(ApiClient.makeApiRequest); // Example
+      // ... assign other required functions from required modules to global scope
+
+      // --- Helper to reset mocks ---
+      global.resetAllMocks = () => {
+        // Use the globally available jest object
+        jest.clearAllMocks();
+
+        // You might need to reset specific mock implementations or states here, e.g.:
+        // if (global.PropertiesService.getScriptProperties().getProperty.mockClear) {
+        //   global.PropertiesService.getScriptProperties().getProperty.mockClear();
+        // }
+        // Resetting the mocks on the service objects is often sufficient if using clearMocks: true in config
+      };
+
+      // --- Register Reset Hook ---
+      // Use the globally available beforeEach. It's added by Jest's environment.
+      beforeEach(() => {
+        resetAllMocks();
+      });
+      ```
+
+      **Key points for `setup.js`:**
+      *   It *simulates* GAS globals before tests run.
+      *   It uses `require` only to *load* source code for setup, relying on the conditional `module.exports` in source files.
+      *   It assigns functions (wrapped in `jest.fn`) and mock services to the `global` object.
+      *   It uses the *already globally available* `jest`, `beforeEach`, `describe`, `it`, `expect`. **Do not `require('@jest/globals')`.**
+
+      ## 3. Write Tests Using Global Functions and Mocks
+
+      Test files should interact primarily with the global environment established by `setup.js`:
+
+      ```javascript
+      // Example test file: tests/MyCode.test.js
+
+      // --- Avoid top-level `require` for source functions ---
+      // --- Rely on the globally available functions assigned in setup.js ---
+
+      // --- EXCEPTION: May need `require` for CONSTANTS exported via the conditional pattern ---
+      // Example: If ApiClient.js exports API_CONFIG constant conditionally:
+      // const { API_CONFIG } = require('../src/ApiClient');
+
+      describe('My Functionality', () => {
+        // Use globally available beforeEach (no import needed)
         beforeEach(() => {
-          // Reset mocks
-          resetAllMocks();
+          // resetAllMocks() is often called automatically via setup.js beforeEach hook
+          // Add specific mock setups for this describe block if needed:
+          PropertiesService.getScriptProperties().getProperty.mockReturnValue('test-value');
         });
-        
-        it('should process range correctly', () => {
-          // Configure global mocks directly
-          validateRange.mockReturnValue(true);
-          validateOutputColumn.mockReturnValue(true);
-          
-          const result = processRange('A1:A2', 'B');
-          expect(result.success).toBe(true);
-          
-          // Verify global mock calls
-          expect(validateRange).toHaveBeenCalledWith('A1:A2');
+
+        // Use globally available 'it'
+        it('should do something correctly', () => {
+          // Call the globally available function directly (was assigned in setup.js)
+          const result = myFunctionGloballyAvailable('input');
+
+          // Use globally available 'expect'
+          expect(result).toBe('expected-output');
+
+          // Verify calls to global mocks
+          expect(PropertiesService.getScriptProperties().getProperty).toHaveBeenCalledWith('someKey');
         });
       });
       ```
-      
-      This approach keeps the testing setup consistent with Apps Script's global scope.
+      **Testing Constants:** Constants (like `API_CONFIG`) defined *inside* source files are not automatically made global by `setup.js`.
+          * **Option A (Preferred):** Test the *behavior* of functions that *use* the constant, rather than testing the constant directly. How does the function behave with default options?
+          * **Option B (If necessary):** If you must access the constant, ensure it's included in the conditional `module.exports` in the source file, then use a `require` *at the top of the test file* specifically for that constant. Treat this as an exception.
+
+      This refined approach ensures tests accurately reflect the GAS environment constraints.
 
   - type: suggest
     message: |
-      ### Google Apps Script (GAS) Constraints Reminder
+      ### Google Apps Script (GAS) Constraints Reminder (Updated)
 
-      You are working within the `src/apps_script/` directory. Remember these key points about the GAS environment:
+      You are working within the `src/apps_script/` directory. Remember these key points:
 
-      1.  **No Standard Modules:**
-          *   You **cannot** use Node.js (`require`/`module.exports`) or ES Modules (`import`/`export`) to structure code *within* this project.
-          *   All `.gs` and `.js` files share **one global scope**.
-
-      2.  **Global Scope & Access:**
-          *   Functions and global variables defined in one file (e.g., `Config.js`) are directly accessible by their name in any other file (e.g., `Code.js`) without any import statement.
-          *   Define functions globally.
-
-      3.  **GAS Services:**
-          *   Use built-in GAS services directly (e.g., `SpreadsheetApp`, `UrlFetchApp`, `PropertiesService`, `Logger`). These are global objects provided by the environment.
-
-      4.  **File Order:**
-          *   While GAS usually parses function definitions first, the execution order of top-level code *can* sometimes depend on file order if not structured carefully (e.g., avoid top-level code that relies on functions defined in other files before those functions are likely parsed). It's best to rely on function calls triggered by events or specific entry points (`onOpen`, menu items, etc.).
-
-      5.  **Testing:**
-          *   When writing tests (e.g., using Jest), you will need special approaches to handle GAS's global environment:
-              * Create a global environment in your test setup file to simulate GAS.
-              * Import actual module functions in the setup and expose them as global mocked functions: 
-                ```javascript
-                const RangeUtils = require('../src/RangeUtils');
-                global.validateRange = jest.fn(RangeUtils.validateRange);
-                ```
-              * Simulate GAS services by creating global mock objects:
-                ```javascript
-                global.SpreadsheetApp = { 
-                  getActiveSheet: jest.fn()
-                };
-                ```
-              * Create a centralized `resetAllMocks()` function that clears all mocks between tests.
-              * Use conditional exports for testing only:
-                ```javascript
-                // Only export for tests
-                if (typeof module !== 'undefined' && module.exports) {
-                  module.exports = { functionName };
-                }
-                ```
-          *   This approach allows tests to focus on behavior verification while accurately simulating the GAS environment.
+      1.  **No Standard Modules:** Runtime GAS code uses a **single global scope**. No `require` or `import`.
+      2.  **Global Access:** Functions in any `.js`/`.gs` file are globally accessible by name.
+      3.  **GAS Services:** Use global services like `SpreadsheetApp` directly.
+      4.  **Testing Strategy:**
+          *   Use Jest with `testEnvironment: 'node'` and `setupFiles: ['./tests/setup.js']`.
+          *   `setup.js` **simulates the global environment**:
+              *   Mocks GAS services globally (e.g., `global.SpreadsheetApp = jest.fn(...)`).
+              *   Uses `require` instrumentally to load source file functions (which must have conditional exports).
+              *   Assigns required functions (wrapped in `jest.fn`) to the `global` object (e.g., `global.myFunction = jest.fn(...)`).
+              *   Uses **globally available** Jest functions (`describe`, `it`, `expect`, `beforeEach`, `jest`). **Do not import from `@jest/globals`**.
+          *   Test files interact with the **global functions and mocks** created by `setup.js`.
+          *   Avoid `require` in test files, except potentially for constants exported conditionally from source files (prefer testing behavior instead).
+          *   Use conditional exports (`if (typeof module !== 'undefined' && module.exports)`) **at the end** of your source `.js` files for functions/constants needed in tests.
 
 examples:
   - input: |
       test setup
-    output: "Setting up your test environment for Apps Script..."
+    output: "Guiding on the correct Jest setup for Apps Script, emphasizing global simulation..."
 
   - input: |
-      How do I handle imports in Apps Script?
-    output: "Google Apps Script doesn't support ES6 imports/exports. Instead, all functions are in the global namespace. For testing, use conditional exports..."
+      How do I handle imports in Apps Script tests?
+    output: "Apps Script runtime has no imports. For testing with Jest, use `setup.js` to create a global simulation. Your test files then use these global functions/mocks. Avoid `require` in tests unless necessary for constants."
 
 metadata:
   priority: high
-  version: 1.0
+  version: 1.1 # Incremented version due to significant update
 </rule>

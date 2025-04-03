@@ -15,7 +15,9 @@ const {
   validateApiKey,
   makeApiRequest,
   processRangeWithApi,
-  processBatch
+  processBatch,
+  processPrompt,
+  processPromptBatch
 } = require('../src/ApiClient.js');
 
 describe('ApiClient', () => {
@@ -33,17 +35,6 @@ describe('ApiClient', () => {
         if (key === 'HUMBLE_CLAY_API_KEY') return TEST_API_KEY;
         return null;
       });
-  });
-
-  describe('API_CONFIG', () => {
-    it('should have correct default values', () => {
-      expect(API_CONFIG).toHaveProperty('maxRetries');
-      expect(API_CONFIG).toHaveProperty('initialRetryDelay');
-      expect(API_CONFIG).toHaveProperty('maxBatchSize');
-      expect(API_CONFIG).toHaveProperty('endpoints');
-      expect(API_CONFIG.endpoints).toHaveProperty('single');
-      expect(API_CONFIG.endpoints).toHaveProperty('batch');
-    });
   });
 
   describe('getApiBaseUrl', () => {
@@ -743,6 +734,164 @@ describe('ApiClient', () => {
       
       // Verify result
       expect(result).toEqual(['42']);
+    });
+  });
+
+  describe('processPrompt', () => {
+    it('should replace column references in prompt template with row values', () => {
+      // Setup
+      const template = 'Analyze this data: {A} and compare with {B}';
+      const rowData = { 'A': 'Value A', 'B': 'Value B' };
+      
+      // Expected result after replacing references
+      const expectedPrompt = 'Analyze this data: Value A and compare with Value B';
+      
+      // Mock API response
+      makeApiRequest.mockReturnValue({ response: 'API result' });
+      
+      // Execute
+      const result = processPrompt(template, rowData);
+      
+      // Verify
+      expect(result).toBe('API result');
+      expect(makeApiRequest).toHaveBeenCalledWith(expectedPrompt, {});
+    });
+    
+    it('should handle multiple references to the same column', () => {
+      // Setup
+      const template = 'Column A appears twice: {A} and again {A}';
+      const rowData = { 'A': 'Value A' };
+      
+      // Expected result after replacing references
+      const expectedPrompt = 'Column A appears twice: Value A and again Value A';
+      
+      // Mock API response
+      makeApiRequest.mockReturnValue({ response: 'API result' });
+      
+      // Execute
+      const result = processPrompt(template, rowData);
+      
+      // Verify
+      expect(makeApiRequest).toHaveBeenCalledWith(expectedPrompt, {});
+    });
+    
+    it('should handle special characters in values', () => {
+      // Setup
+      const template = 'Special characters in {A}';
+      const rowData = { 'A': 'Value with $, \\, and "quotes"' };
+      
+      // Expected result after replacing references
+      const expectedPrompt = 'Special characters in Value with $, \\, and "quotes"';
+      
+      // Mock API response
+      makeApiRequest.mockReturnValue({ response: 'API result' });
+      
+      // Execute
+      const result = processPrompt(template, rowData);
+      
+      // Verify
+      expect(makeApiRequest).toHaveBeenCalledWith(expectedPrompt, {});
+    });
+    
+    it('should throw error when column reference is missing from data', () => {
+      // Setup
+      const template = 'Analyze {A} and {C}';
+      const rowData = { 'A': 'Value A', 'B': 'Value B' }; // C is missing
+      
+      // Execute & Verify
+      expect(() => processPrompt(template, rowData)).toThrow('Missing data for column reference {C}');
+    });
+  });
+  
+  describe('processPromptBatch', () => {
+    it('should process multiple prompts in a batch', () => {
+      // Setup
+      const templates = [
+        'Analyze {A}',
+        'Process {B}'
+      ];
+      
+      const rowsData = [
+        { 'A': 'Value A1', 'B': 'Value B1' },
+        { 'A': 'Value A2', 'B': 'Value B2' }
+      ];
+      
+      // Expected prompts after replacing references
+      const expectedPrompts = [
+        'Analyze Value A1',
+        'Process Value B1'
+      ];
+      
+      // Mock batch API response
+      processBatch.mockReturnValue([
+        { response: 'Result 1' },
+        { response: 'Result 2' }
+      ]);
+      
+      // Execute
+      const results = processPromptBatch(templates, rowsData);
+      
+      // Verify
+      expect(results).toEqual(['Result 1', 'Result 2']);
+      expect(processBatch).toHaveBeenCalledWith(expectedPrompts, {});
+    });
+    
+    it('should handle API errors in batch responses', () => {
+      // Setup
+      const templates = ['Analyze {A}', 'Process {B}'];
+      const rowsData = [
+        { 'A': 'Value A', 'B': 'Value B' },
+        { 'A': 'Value A2', 'B': 'Value B2' }
+      ];
+      
+      // Mock batch API response with one error
+      processBatch.mockReturnValue([
+        { response: 'Result 1' },
+        { status: 'error', error: 'API error for prompt 2' }
+      ]);
+      
+      // Execute
+      const results = processPromptBatch(templates, rowsData);
+      
+      // Verify - should return error message for the second item
+      expect(results).toEqual(['Result 1', 'Error: API error for prompt 2']);
+    });
+    
+    it('should handle empty response from API', () => {
+      // Setup
+      const templates = ['Analyze {A}'];
+      const rowsData = [{ 'A': 'Value A' }];
+      
+      // Mock empty API response
+      processBatch.mockReturnValue([{ response: '' }]);
+      
+      // Execute
+      const results = processPromptBatch(templates, rowsData);
+      
+      // Verify - should return empty string
+      expect(results).toEqual(['']);
+    });
+    
+    it('should retry on retryable errors', () => {
+      // Setup
+      const templates = ['Analyze {A}'];
+      const rowsData = [{ 'A': 'Value A' }];
+      
+      // Mock processBatch to throw rate limit error then succeed
+      processBatch
+        .mockImplementationOnce(() => { throw new Error('Rate limit exceeded'); })
+        .mockReturnValue([{ response: 'Result after retry' }]);
+      
+      // Mock Utilities.sleep
+      Utilities.sleep.mockImplementation(() => {}); // Do nothing
+      
+      // Execute
+      const results = processPromptBatch(templates, rowsData, { maxRetries: 2 });
+      
+      // Verify
+      expect(results).toEqual(['Result after retry']);
+      expect(processBatch).toHaveBeenCalledTimes(2); // Called twice due to retry
+      expect(Utilities.sleep).toHaveBeenCalled(); // Sleep was called for backoff
     });
   });
 }); 

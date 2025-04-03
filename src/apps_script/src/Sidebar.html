@@ -33,6 +33,13 @@
       .accordion-body {
         padding: 1rem;
       }
+      /* Styles for prompt editor */
+      #promptEditor {
+        font-family: monospace;
+        min-height: 150px; /* Start height */
+        resize: vertical;   /* Allow vertical resizing */
+        line-height: 1.5;
+      }
     </style>
   </head>
   <body>
@@ -41,18 +48,38 @@
       <p class="small text-muted">Process text with AI and extract structured data</p>
       
       <form id="promptForm">
-        <div class="form-group">
-          <label for="inputRange">Input Range <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="inputRange" placeholder="e.g., A1:A10" required>
-          <div class="hint">The range containing your input text</div>
-        </div>
         
         <div class="form-group">
           <label for="outputColumn">Output Column <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="outputColumn" placeholder="e.g., B" required>
           <div class="hint">The column where results will be placed</div>
         </div>
-        
+
+        <div class="form-group">
+          <label for="promptEditor">Prompt Template <span class="text-danger">*</span></label>
+          <textarea class="form-control" id="promptEditor" rows="10" 
+                    placeholder="Example: Analyze the text in column {A} and extract the company name mentioned in {B}.\n\nText: {A}\nCompany Hint: {B}" 
+                    required></textarea>
+          <div class="hint">Use {ColumnLetter} (e.g., {A}, {B}) to reference data from other columns in the same row.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Process Rows</label>
+          <div class="row g-2">
+            <div class="col">
+              <input type="number" class="form-control" id="startRow" placeholder="Start Row" min="1">
+            </div>
+            <div class="col">
+              <input type="number" class="form-control" id="endRow" placeholder="End Row" min="1">
+            </div>
+          </div>
+          <div class="hint">Leave blank to process all data rows, or specify a start/end row range.</div>
+        </div>
+
+        <hr/> 
+
+        <p class="small text-muted">Optional Output Formatting:</p>
+
         <div class="form-group">
           <label for="simpleField">Output Field (Optional)</label>
           <input type="text" class="form-control" id="simpleField" placeholder="e.g., age: int, status: [active, pending]">
@@ -63,14 +90,14 @@
           </div>
         </div>
         
-        <div class="accordion mb-3">
+        <div class="accordion mb-3" id="formattingAccordion">
           <div class="accordion-item">
             <h2 class="accordion-header" id="advancedOptionsHeading">
               <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#advancedOptions" aria-expanded="false" aria-controls="advancedOptions">
-                Advanced Options
+                Advanced Formatting (JSON Schema)
               </button>
             </h2>
-            <div id="advancedOptions" class="accordion-collapse collapse" aria-labelledby="advancedOptionsHeading">
+            <div id="advancedOptions" class="accordion-collapse collapse" aria-labelledby="advancedOptionsHeading" data-bs-parent="#formattingAccordion">
               <div class="accordion-body">
                 <div class="form-group">
                   <label for="jsonSchema">JSON Schema (Optional)</label>
@@ -81,7 +108,7 @@
                 <div class="form-group">
                   <label for="fieldPath">Field Path (Optional)</label>
                   <input type="text" class="form-control" id="fieldPath" placeholder="e.g., name">
-                  <div class="hint">Path to extract from the response</div>
+                  <div class="hint">Path to extract from the response (requires schema)</div>
                 </div>
                 
                 <button type="button" id="schemaExample" class="btn btn-sm btn-outline-secondary mt-2">
@@ -92,7 +119,7 @@
           </div>
         </div>
         
-        <button type="submit" class="btn btn-primary w-100">Process Range</button>
+        <button type="submit" class="btn btn-primary w-100">Apply Prompt & Process</button>
       </form>
       
       <div id="spinner" class="mt-3">
@@ -126,9 +153,21 @@
           return false;
         }
       }
+
+      function showSuccess(message) {
+        var alert = document.getElementById('successAlert');
+        alert.textContent = message;
+        alert.style.display = 'block';
+      }
+
+      function showError(message) {
+        var alert = document.getElementById('errorAlert');
+        alert.textContent = message;
+        alert.style.display = 'block';
+      }
       
       // Insert example schema
-      document.getElementById('schemaExample').addEventListener('click', function() {
+      function handleSchemaExampleClick() {
         const example = {
           "type": "object",
           "properties": {
@@ -142,7 +181,7 @@
           "required": ["name", "age"]
         };
         document.getElementById('jsonSchema').value = JSON.stringify(example, null, 2);
-      });
+      }
 
       // Function to parse simple field syntax and update schema and field path
       function updateSchemaFromSimpleField() {
@@ -185,43 +224,43 @@
         }
       }
 
-      // Listen for changes to the simple field
-      document.getElementById('simpleField').addEventListener('blur', updateSchemaFromSimpleField);
-      
-      // Listen for changes to advanced fields to clear simple field
-      document.getElementById('jsonSchema').addEventListener('input', function() {
-        if (this.value && document.getElementById('simpleField').value) {
+      function handleAdvancedFieldInput(inputId) {
+        if (document.getElementById(inputId).value && document.getElementById('simpleField').value) {
           document.getElementById('simpleField').value = '';
         }
-      });
-      
-      document.getElementById('fieldPath').addEventListener('input', function() {
-        if (this.value && document.getElementById('simpleField').value) {
-          document.getElementById('simpleField').value = '';
-        }
-      });
+      }
 
-      document.addEventListener('DOMContentLoaded', function() {
-        // Initialize form with URL parameters if present
-        var inputRange = getUrlParameter('inputRange');
-        var outputColumn = getUrlParameter('outputColumn');
-        
-        if (inputRange) document.getElementById('inputRange').value = inputRange;
-        if (outputColumn) document.getElementById('outputColumn').value = outputColumn;
-        
-        // Form submission handler
-        document.getElementById('promptForm').addEventListener('submit', function(e) {
+      function handleFormSubmit(e) {
           e.preventDefault();
           
-          var inputRange = document.getElementById('inputRange').value;
+          // Get values from the form
           var outputColumn = document.getElementById('outputColumn').value;
+          var promptTemplate = document.getElementById('promptEditor').value;
+          var startRow = document.getElementById('startRow').value;
+          var endRow = document.getElementById('endRow').value;
           var simpleField = document.getElementById('simpleField').value;
           var jsonSchema = document.getElementById('jsonSchema').value;
           var fieldPath = document.getElementById('fieldPath').value;
           
           // Basic validation
-          if (!inputRange || !outputColumn) {
-            showError('Please fill in all required fields.');
+          if (!outputColumn || !promptTemplate) {
+            showError('Please fill in Output Column and Prompt Template.');
+            return;
+          }
+
+          // Validate row range if provided
+          const startRowNum = startRow ? parseInt(startRow) : null;
+          const endRowNum = endRow ? parseInt(endRow) : null;
+          if (startRowNum !== null && (isNaN(startRowNum) || startRowNum < 1)) {
+            showError('Start Row must be a positive number.');
+            return;
+          }
+          if (endRowNum !== null && (isNaN(endRowNum) || endRowNum < 1)) {
+            showError('End Row must be a positive number.');
+            return;
+          }
+          if (startRowNum !== null && endRowNum !== null && endRowNum < startRowNum) {
+            showError('End Row cannot be less than Start Row.');
             return;
           }
           
@@ -229,115 +268,73 @@
           var schemaObj = null;
           if (simpleField && (!jsonSchema && !fieldPath)) {
             try {
-              // Add debugging to check if functions exist
-              console.log('SimpleOutputField functions available:', 
-                typeof parseSimpleSyntax, 
-                typeof generateSchemaFromSyntax, 
-                typeof extractFieldPathFromSyntax);
-              
-              // Log the input
-              console.log('Processing simple field:', simpleField);
-              
-              // Check if parseSimpleSyntax is available
-              if (typeof parseSimpleSyntax !== 'function') {
-                throw new Error('parseSimpleSyntax function is not available');
-              }
-              
-              // Directly use SimpleOutputField functions instead of updating DOM
               var parsedSyntax = parseSimpleSyntax(simpleField);
-              console.log('Parsed syntax:', parsedSyntax);
-              
               if (parsedSyntax) {
-                // Check if generateSchemaFromSyntax is available
-                if (typeof generateSchemaFromSyntax !== 'function') {
-                  throw new Error('generateSchemaFromSyntax function is not available');
-                }
-                
-                // Generate schema directly
                 schemaObj = generateSchemaFromSyntax(parsedSyntax);
-                console.log('Generated schema:', schemaObj);
-                
-                // Check if extractFieldPathFromSyntax is available
-                if (typeof extractFieldPathFromSyntax !== 'function') {
-                  throw new Error('extractFieldPathFromSyntax function is not available');
-                }
-                
-                // Get field path directly
                 fieldPath = extractFieldPathFromSyntax(parsedSyntax);
-                console.log('Extracted field path:', fieldPath);
-                
-                // Also update the UI fields for user feedback
-                if (schemaObj) {
-                  jsonSchema = JSON.stringify(schemaObj, null, 2);
-                  document.getElementById('jsonSchema').value = jsonSchema;
-                }
-                if (fieldPath) {
-                  document.getElementById('fieldPath').value = fieldPath;
-                }
               }
             } catch (e) {
-              console.error('Error processing simple field:', e.message, e.stack);
-              showError('Error processing simple field: ' + e.message);
+              console.error('Error processing simple field:', e);
+              showError('Error processing field: ' + e.message);
               return;
             }
           } else if (jsonSchema) {
-            // Use the existing schema if provided
+            // If JSON schema is provided, validate and parse it
             try {
               schemaObj = JSON.parse(jsonSchema);
             } catch (e) {
-              showError('Invalid JSON schema. Please check your format.');
+              showError('Invalid JSON schema: ' + e.message);
               return;
             }
-          }
-          
-          // Validate field path only allowed if schema is provided
-          if (fieldPath && !schemaObj) {
-            showError('Field path can only be used when a schema is provided.');
-            return;
           }
           
           // Show spinner
           document.getElementById('spinner').style.display = 'block';
           
-          // Hide previous alerts
+          // Clear previous alerts
           document.getElementById('successAlert').style.display = 'none';
           document.getElementById('errorAlert').style.display = 'none';
           
-          console.log('Submitting with schema:', schemaObj);
-          console.log('Submitting with field path:', fieldPath);
-          
-          // Call the server-side function
+          // Call the NEW server-side function to process the prompt
           google.script.run
             .withSuccessHandler(function(result) {
               // Hide spinner
               document.getElementById('spinner').style.display = 'none';
               
               if (result.success) {
-                showSuccess(result.message);
+                showSuccess(result.message || 'Processing complete');
               } else {
-                showError(result.message);
+                showError(result.message || 'An error occurred during processing');
               }
             })
             .withFailureHandler(function(error) {
               // Hide spinner
               document.getElementById('spinner').style.display = 'none';
-              showError('Error: ' + error.message);
+              showError(error.message || 'An unexpected error occurred');
             })
-            .processRange(inputRange, outputColumn, schemaObj, fieldPath);
-        });
+            .processPrompt(
+              outputColumn, 
+              promptTemplate, 
+              startRowNum, 
+              endRowNum,  
+              schemaObj, 
+              fieldPath
+            );
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        // Initialize form with URL parameters if present
+        var outputColumn = getUrlParameter('outputColumn');
+        if (outputColumn) document.getElementById('outputColumn').value = outputColumn;
+        
+        // Attach event listeners
+        document.getElementById('schemaExample').addEventListener('click', handleSchemaExampleClick);
+        document.getElementById('simpleField').addEventListener('blur', updateSchemaFromSimpleField);
+        document.getElementById('jsonSchema').addEventListener('input', function() { handleAdvancedFieldInput('jsonSchema'); });
+        document.getElementById('fieldPath').addEventListener('input', function() { handleAdvancedFieldInput('fieldPath'); });
+        document.getElementById('promptForm').addEventListener('submit', handleFormSubmit);
       });
-      
-      function showSuccess(message) {
-        var alert = document.getElementById('successAlert');
-        alert.textContent = message;
-        alert.style.display = 'block';
-      }
-      
-      function showError(message) {
-        var alert = document.getElementById('errorAlert');
-        alert.textContent = message;
-        alert.style.display = 'block';
-      }
+
     </script>
   </body>
 </html> 

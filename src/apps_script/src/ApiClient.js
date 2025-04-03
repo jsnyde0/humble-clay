@@ -10,8 +10,7 @@ const API_CONFIG = {
   initialRetryDelay: 1000, // 1 second
   maxBatchSize: 10, // Maximum items to process in parallel
   endpoints: {
-    single: '/api/v1/prompt',
-    batch: '/api/v1/prompts'
+    batch: '/api/v1/prompts'  // We only use the batch endpoint
   }
 };
 
@@ -121,12 +120,20 @@ function handleApiResponse(response) {
           return data; // Return the full object with the responses array
         }
         
-        // Handle SINGLE response format: { response: "..." }
-        if (data && typeof data.response === 'string') {
-          // Transform to a consistent structure for internal use if needed, 
-          // although makeApiRequest might not use this structure directly anymore.
-          // Let's return the raw single response object for now.
-          return data; 
+        // Handle SINGLE response format: { status, response, error }
+        if (data) {
+          // Check for error status
+          if (data.status === 'error' && data.error) {
+            throw new Error(data.error);
+          }
+          
+          // Validate response field exists
+          if (data.response === undefined) {
+            Logger.log(`[handleApiResponse] Error: Missing response field: ${responseText}`);
+            throw new Error('Invalid response format: missing response field');
+          }
+          
+          return data;
         }
         
         // If neither format matches, it's invalid
@@ -137,7 +144,12 @@ function handleApiResponse(response) {
         throw new Error(`Failed to parse API response: ${e.message}`);
       }
     case 400:
-      throw new Error(`Bad request: ${responseText}`);
+      try {
+        const errorData = JSON.parse(responseText);
+        throw new Error(errorData.error || `Bad request: ${responseText}`);
+      } catch (e) {
+        throw new Error(`Bad request: ${responseText}`);
+      }
     case 401:
       throw new Error('Invalid API key. Please check your configuration.');
     case 429:
@@ -213,15 +225,14 @@ function makeApiRequest(inputText, options = {}) {
 
   const baseUrl = getApiBaseUrl().replace(/\/$/, ''); // Remove trailing slash if present
 
-  // Format request payload to match FastAPI PromptRequest model
-  const payload = {
-    prompt: inputText.trim() // Match FastAPI PromptRequest model
+  // Format request payload to match FastAPI MultiplePromptsRequest model
+  const promptRequest = {
+    prompt: inputText.trim()
   };
 
   // Add responseFormat if provided in options
   if (options.responseFormat) {
-    // Format the schema according to the API's expected structure
-    payload.response_format = {
+    promptRequest.response_format = {
       type: "json_schema",
       json_schema: {
         name: "DynamicSchema",
@@ -232,15 +243,23 @@ function makeApiRequest(inputText, options = {}) {
 
   // Add extractFieldPath if provided in options
   if (options.extractFieldPath) {
-    payload.extract_field_path = options.extractFieldPath;
+    promptRequest.extract_field_path = options.extractFieldPath;
   }
+
+  // Create batch request with single prompt
+  const payload = {
+    prompts: [promptRequest]
+  };
+
+  // Debug log the payload
+  Logger.log(`[makeApiRequest] Request payload: ${JSON.stringify(payload)}`);
 
   // Prepare request options
   const requestOptions = {
     method: 'post',
     contentType: 'application/json',
     headers: {
-      'X-API-Key': apiKey, // Use X-API-Key header
+      'X-API-Key': apiKey,
       'Accept': 'application/json'
     },
     payload: JSON.stringify(payload),
@@ -248,8 +267,15 @@ function makeApiRequest(inputText, options = {}) {
   };
 
   return retryWithBackoff(() => {
-    const response = UrlFetchApp.fetch(`${baseUrl}${API_CONFIG.endpoints.single}`, requestOptions);
-    return handleApiResponse(response);
+    const response = UrlFetchApp.fetch(`${baseUrl}${API_CONFIG.endpoints.batch}`, requestOptions);
+    const result = handleApiResponse(response);
+    
+    // Extract the first (and only) response from the batch
+    if (!result.responses || !Array.isArray(result.responses) || result.responses.length === 0) {
+      throw new Error('Invalid response format from API');
+    }
+    
+    return result.responses[0];
   }, options);
 }
 
@@ -296,33 +322,21 @@ function processBatch(batch, options = {}) {
 
   // Format batch request to match FastAPI MultiplePromptsRequest model
   const payload = {
-    prompts: batch.map(value => {
-      const promptRequest = {
-        prompt: value.toString().trim()
-      };
-      
-      // Add responseFormat if provided in options
-      if (options.responseFormat) {
-        Logger.log(`[processBatch] Adding schema to request: ${JSON.stringify(options.responseFormat)}`);
-        
-        // Enhanced schema formatting for better LLM guidance
-        promptRequest.response_format = {
+    prompts: batch.map(value => ({
+      prompt: value.toString().trim(),
+      ...(options.responseFormat && {
+        response_format: {
           type: "json_schema",
           json_schema: {
             name: "DynamicSchema",
             schema: options.responseFormat
           }
-        };
-      }
-      
-      // Add extractFieldPath if provided in options
-      if (options.extractFieldPath) {
-        Logger.log(`[processBatch] Adding field path to request: ${options.extractFieldPath}`);
-        promptRequest.extract_field_path = options.extractFieldPath;
-      }
-      
-      return promptRequest;
-    })
+        }
+      }),
+      ...(options.extractFieldPath && {
+        extract_field_path: options.extractFieldPath
+      })
+    }))
   };
 
   // Debug log completed payload
@@ -333,7 +347,7 @@ function processBatch(batch, options = {}) {
     method: 'post',
     contentType: 'application/json',
     headers: {
-      'X-API-Key': apiKey, // Use X-API-Key header
+      'X-API-Key': apiKey,
       'Accept': 'application/json'
     },
     payload: JSON.stringify(payload),
@@ -343,28 +357,24 @@ function processBatch(batch, options = {}) {
   return retryWithBackoff(() => {
     const fullUrl = `${baseUrl}${API_CONFIG.endpoints.batch}`;
     Logger.log(`[processBatch] Fetching URL: ${fullUrl}`);
-    Logger.log(`[processBatch] Request Options: ${JSON.stringify(requestOptions, null, 2)}`);
     
     const response = UrlFetchApp.fetch(fullUrl, requestOptions);
     
-    const responseCode = response.getResponseCode();
-    const responseText = response.getContentText();
-    Logger.log(`[processBatch] Response Code: ${responseCode}`);
-    Logger.log(`[processBatch] Response Text: ${responseText}`);
-
     // Original handleApiResponse logic expects the raw response object
-    const result = handleApiResponse(response); 
+    const result = handleApiResponse(response);
     
     // Extract responses from the result
-    if (!result.responses) {
+    if (!result.responses || !Array.isArray(result.responses)) {
       Logger.log('[processBatch] Error: Invalid batch response format received.');
       throw new Error('Invalid batch response format');
     }
     
     // Map responses to either successful results or error messages
     return result.responses.map(r => {
-      if (r.status === 'success' && r.response !== undefined) return r.response;
-      return `Error: ${r.error || 'Unknown error'}`;
+      if (r.status === 'error') {
+        return `Error: ${r.error || 'Unknown error'}`;
+      }
+      return r.response;
     });
   }, options);
 }
@@ -430,7 +440,6 @@ function processRangeWithApi(values, options = {}) {
 // Only export for tests
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    API_CONFIG,
     getApiBaseUrl,
     setApiBaseUrl,
     getApiKey,
@@ -439,7 +448,6 @@ if (typeof module !== 'undefined' && module.exports) {
     formatRequestPayload,
     handleApiResponse,
     retryWithBackoff,
-    shouldRetry,
     makeApiRequest,
     validateApiKey,
     processBatch,

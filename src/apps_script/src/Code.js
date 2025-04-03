@@ -64,9 +64,9 @@ function validateApiConfig() {
       throw new Error('API URL not configured');
     }
     
-    // Test API connection
-    const testResult = makeApiRequest('test', { systemPrompt: 'test' });
-    if (!testResult || !testResult.output) {
+    // Test API connection with a simple test prompt
+    const testResult = makeApiRequest('test');
+    if (!testResult || testResult.status === 'error' || testResult.response === undefined) {
       throw new Error('API test request failed');
     }
 
@@ -172,12 +172,172 @@ function processRange(inputRange, outputColumn, schema = null, fieldPath = '') {
   }
 }
 
-// Only export for tests
+/**
+ * Processes rows using a prompt template with column references
+ * @param {string} outputColumn - The output column letter (e.g., 'C')
+ * @param {string} promptTemplate - The prompt template with column references (e.g., "Analyze {A}")
+ * @param {number|null} startRow - Optional start row number (1-based)
+ * @param {number|null} endRow - Optional end row number (1-based)
+ * @param {Object|null} schema - Optional JSON schema for output validation
+ * @param {string} fieldPath - Optional field path to extract from the response
+ * @returns {Object} Result object with success status and any error message
+ */
+function processPrompt(outputColumn, promptTemplate, startRow = null, endRow = null, schema = null, fieldPath = '') {
+  try {
+    // Debug logging
+    Logger.log(`[processPrompt] Called with: outputColumn=${outputColumn}, template="${promptTemplate}"`);
+    Logger.log(`[processPrompt] Rows: start=${startRow}, end=${endRow}`);
+    Logger.log(`[processPrompt] Schema: ${JSON.stringify(schema)}`);
+    Logger.log(`[processPrompt] Field path: ${fieldPath}`);
+
+    // Validate inputs
+    validateOutputColumn(outputColumn);
+    if (!promptTemplate || typeof promptTemplate !== 'string') {
+      throw new Error('Prompt template is required and must be a string');
+    }
+
+    // Get the active sheet
+    const sheet = SpreadsheetApp.getActiveSheet();
+    if (!sheet) {
+      throw new Error('No active sheet found');
+    }
+
+    // Get the last row with data
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 1) {
+      throw new Error('Sheet is empty');
+    }
+
+    // Determine row range
+    const effectiveStartRow = startRow || 1;
+    const effectiveEndRow = endRow || lastRow;
+
+    // Validate row range
+    if (effectiveStartRow > effectiveEndRow) {
+      throw new Error('Start row cannot be greater than end row');
+    }
+    if (effectiveStartRow < 1) {
+      throw new Error('Start row must be at least 1');
+    }
+    if (effectiveEndRow > lastRow) {
+      throw new Error(`End row cannot exceed last data row (${lastRow})`);
+    }
+
+    // Extract column references from prompt template
+    const columnRefs = extractColumnReferences(promptTemplate);
+    if (columnRefs.length === 0) {
+      throw new Error('No column references found in prompt template');
+    }
+
+    // Get data for all referenced columns
+    const columnData = {};
+    for (const col of columnRefs) {
+      const range = sheet.getRange(`${col}${effectiveStartRow}:${col}${effectiveEndRow}`);
+      columnData[col] = range.getValues().map(row => row[0]);
+    }
+
+    // Process each row
+    const results = [];
+    for (let i = 0; i < columnData[columnRefs[0]].length; i++) {
+      // Replace column references with actual values
+      let prompt = promptTemplate;
+      for (const col of columnRefs) {
+        const value = columnData[col][i];
+        prompt = prompt.replace(new RegExp(`\\{${col}\\}`, 'g'), value || '');
+      }
+
+      // Create options object for API processing
+      const options = {};
+      if (schema) {
+        options.responseFormat = schema;
+      }
+      if (fieldPath) {
+        options.extractFieldPath = fieldPath;
+      }
+
+      // Log the actual prompt being sent
+      Logger.log(`[processPrompt] Processing row ${i + effectiveStartRow} with prompt: ${prompt}`);
+      Logger.log(`[processPrompt] API options: ${JSON.stringify(options)}`);
+
+      // Process the prompt using the API
+      try {
+        const response = makeApiRequest(prompt, {
+          ...options
+        });
+        
+        Logger.log(`[processPrompt] API response for row ${i + effectiveStartRow}: ${JSON.stringify(response)}`);
+        
+        if (!response) {
+          throw new Error('Empty response from API');
+        }
+        
+        if (response.error) {
+          throw new Error(`API error: ${response.error}`);
+        }
+
+        // Extract the response text from the API response
+        const output = response.response || '';
+        results.push([output]);
+      } catch (error) {
+        Logger.log(`[processPrompt] Error processing row ${i + effectiveStartRow}: ${error.message}`);
+        results.push(['Error: ' + error.message]); // Show error in the cell instead of empty string
+      }
+    }
+
+    // Write results to output column
+    const outputRange = sheet.getRange(
+      effectiveStartRow,
+      columnToIndex(outputColumn),
+      results.length,
+      1
+    );
+    outputRange.setValues(results);
+
+    return {
+      success: true,
+      message: `Processed ${results.length} rows successfully`
+    };
+
+  } catch (error) {
+    console.error('Error processing prompt:', error);
+    return {
+      success: false,
+      message: error.message || 'An unknown error occurred'
+    };
+  }
+}
+
+/**
+ * Extracts unique column references from a prompt template
+ * @param {string} template - The prompt template
+ * @returns {string[]} Array of column letters
+ */
+function extractColumnReferences(template) {
+  const matches = template.match(/\{[A-Z]+\}/g) || [];
+  return [...new Set(matches.map(match => match.slice(1, -1)))];
+}
+
+/**
+ * Converts a column letter to a 1-based index
+ * @param {string} column - The column letter (e.g., 'A', 'B', 'AA')
+ * @returns {number} The 1-based column index
+ */
+function columnToIndex(column) {
+  let result = 0;
+  for (let i = 0; i < column.length; i++) {
+    result *= 26;
+    result += column.charCodeAt(i) - 'A'.charCodeAt(0) + 1;
+  }
+  return result;
+}
+
+// Update exports
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     onOpen,
     showSidebar,
     processRange,
+    processPrompt,
     showConfigDialog,
     validateApiConfig
   };

@@ -1,20 +1,15 @@
 {
-  "name": "humble-clay-sheets-addon",
+  "name": "humble-clay-apps-script",
   "version": "1.0.0",
-  "description": "Google Sheets add-on for Humble Clay API integration",
+  "description": "Google Apps Script integration for Humble Clay",
   "scripts": {
     "test": "jest",
-    "clasp:login": "clasp login",
-    "clasp:push": "clasp push",
-    "clasp:watch": "clasp push --watch",
-    "clasp:open": "clasp open",
-    "lint": "eslint src/**/*.js tests/**/*.js"
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
-    "@google/clasp": "^2.4.2",
-    "eslint": "^8.57.0",
-    "jest": "^29.7.0"
+    "@types/google-apps-script": "^1.0.64",
+    "@types/jest": "^29.5.3",
+    "jest": "^29.6.1"
   }
 }
