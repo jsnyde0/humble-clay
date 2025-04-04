@@ -23,7 +23,12 @@ app = FastAPI(
 )
 
 # Batch processing configuration
-BATCH_SIZE = 10
+# Using a batch size of 100 optimized for Gemini Flash Lite:
+# 1. Flash models are designed for high throughput
+# 2. Lower latency per request than standard models
+# 3. Specifically optimized for batch processing
+# 4. Significantly reduces processing time for large datasets
+BATCH_SIZE = 100
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
