@@ -183,6 +183,7 @@ function processRange(inputRange, outputColumn, schema = null, fieldPath = '') {
  * @returns {Object} Result object with success status and any error message
  */
 function processPrompt(outputColumn, promptTemplate, startRow = null, endRow = null, schema = null, fieldPath = '') {
+  const startTime = new Date().getTime(); // Record start time
   try {
     // Debug logging
     Logger.log(`[processPrompt] Called with: outputColumn=${outputColumn}, template="${promptTemplate}"`);
@@ -293,9 +294,13 @@ function processPrompt(outputColumn, promptTemplate, startRow = null, endRow = n
     );
     outputRange.setValues(results);
 
+    const endTime = new Date().getTime(); // Record end time
+    const durationMs = endTime - startTime;
+    const durationSec = (durationMs / 1000).toFixed(1); // Calculate duration in seconds
+
     return {
       success: true,
-      message: `Processed ${results.length} rows successfully`
+      message: `Processed ${results.length} rows successfully in ${durationSec}s`
     };
 
   } catch (error) {
