@@ -11,6 +11,7 @@ dependencies = [
     "fastapi>=0.115.12",
     "httpx>=0.28.1",
     "instructor>=1.7.8",
+    "logfire[fastapi]>=3.12.0",
     "mypy>=1.15.0",
     "pre-commit>=4.1.0",
     "prefect>=3.2.14",

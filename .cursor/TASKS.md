@@ -15,3 +15,9 @@
 - Input preview feature 
 
 ## Planned Tasks 
+
+# Tasks Index
+
+| ID | Description | State | Start Date | End Date |
+|----|-------------|-------|------------|----------|
+| [TASK-2023-07-11-01](tasks/TASK-2023-07-11-01.md) | Logging and Monitoring MVP | Active | 2023-07-11 | - | 
