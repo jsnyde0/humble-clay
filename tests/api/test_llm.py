@@ -104,7 +104,8 @@ async def test_process_with_llm_handles_api_error(mocker):
         "src.api.llm.client.chat.completions.create", new_callable=AsyncMock
     )
 
-    # Correctly instantiate APIError (may need httpx request mock if constructor needs it)
+    # Correctly instantiate APIError (may need httpx request mock if constructor
+    # needs it)
     # Let's try with a simple mocked request first.
     mock_request = mocker.Mock(spec=httpx.Request)
     mock_openai_create.side_effect = openai.APIError(
@@ -120,7 +121,10 @@ async def test_process_with_llm_handles_api_error(mocker):
 # --- Integration Test ---
 @pytest.mark.llm  # Mark as integration test requiring LLM
 async def test_process_with_llm_instructor_integration():
-    """Integration test for process_with_llm with Instructor to extract structured data."""
+    """
+    Integration test for process_with_llm with Instructor to extract structured
+    data.
+    """
     input_text = "Create Person objects for John Doe (age 30) and Jane Smith (age 25)."
 
     print(f"\nRunning Instructor integration test with input: '{input_text}'")

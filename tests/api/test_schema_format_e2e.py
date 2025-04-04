@@ -67,7 +67,10 @@ def test_api_processes_apps_script_schema_with_field_extraction(
     auth_headers: Dict[str, str],
     apps_script_format_schema: Dict[str, Any],
 ) -> None:
-    """Test that the API correctly processes schema with field extraction from Apps Script."""
+    """
+    Test that the API correctly processes schema with field extraction from
+    Apps Script.
+    """
     # Mock the LLM to return a structured response matching the schema
     mock_llm = mocker.patch("src.api.main.process_with_llm")
     mock_llm.return_value = {"age": 35}
@@ -210,7 +213,10 @@ def test_batch_endpoint_schema_validation_correct_parameters(
     auth_headers: Dict[str, str],
     apps_script_format_schema: Dict[str, Any],
 ) -> None:
-    """Test that the batch endpoint correctly passes response_model to process_with_llm."""
+    """
+    Test that the batch endpoint correctly passes response_model to
+    process_with_llm.
+    """
     # Mock process_with_llm to track calls and parameters
     mock_llm = mocker.patch("src.api.main.process_with_llm")
     # Return a structured response
@@ -247,7 +253,9 @@ def test_batch_endpoint_returns_structured_data(
     auth_headers: Dict[str, str],
     apps_script_format_schema: Dict[str, Any],
 ) -> None:
-    """Test that the batch endpoint returns structured data when a schema is provided."""
+    """
+    Test that the batch endpoint returns structured data when a schema is provided.
+    """
     # Mock the LLM to return a structured response
     mock_llm = mocker.patch("src.api.main.process_with_llm")
     mock_llm.return_value = {"age": 35}
@@ -284,7 +292,9 @@ def test_batch_endpoint_field_extraction(
     auth_headers: Dict[str, str],
     apps_script_format_schema: Dict[str, Any],
 ) -> None:
-    """Test that the batch endpoint correctly extracts fields from structured responses."""
+    """
+    Test that the batch endpoint correctly extracts fields from structured responses.
+    """
     # Mock the LLM to return a structured response
     mock_llm = mocker.patch("src.api.main.process_with_llm")
     mock_llm.return_value = {"age": 35}
@@ -404,17 +414,20 @@ def test_prompts_endpoint_end_to_end_integration(
         },
     }
 
-    # Create a batch request with prompts that should yield predictable structured responses
+    # Create a batch request with prompts that should yield predictable
+    # structured responses
     payload = {
         "prompts": [
             # First prompt: schema without field extraction
             {
-                "prompt": "I'm 35 years old. Extract my age as a number in a structured format.",
+                "prompt": "I'm 35 years old. Extract my age as a number in a \
+                    structured format.",
                 "response_format": age_schema,
             },
             # Second prompt: schema with field extraction
             {
-                "prompt": "I'm 42 years old. Extract my age as a number in a structured format.",
+                "prompt": "I'm 42 years old. Extract my age as a number in a \
+                    structured format.",
                 "response_format": age_schema,
                 "extract_field_path": "age",
             },
@@ -462,7 +475,8 @@ def test_person_schema_extraction_integration(
     """
     End-to-end integration test using a more complex schema for person information.
 
-    Tests the ability to extract structured data from text with multiple fields and types.
+    Tests the ability to extract structured data from text with multiple fields \
+        and types.
     """
     # Define a more complex person schema
     person_schema = {
@@ -487,18 +501,21 @@ def test_person_schema_extraction_integration(
         "prompts": [
             # Full person schema
             {
-                "prompt": "My name is John Smith, I'm 29 years old and not a student anymore. My skills include Python, JavaScript, and SQL.",
+                "prompt": "My name is John Smith, I'm 29 years old and not a \
+                    student anymore. My skills include Python, JavaScript, and SQL.",
                 "response_format": person_schema,
             },
             # Extract just the name
             {
-                "prompt": "My name is Jane Doe, I'm 24 years old and I am a student. My skills include Java and C++.",
+                "prompt": "My name is Jane Doe, I'm 24 years old and I am a \
+                    student. My skills include Java and C++.",
                 "response_format": person_schema,
                 "extract_field_path": "name",
             },
             # Extract just the isStudent boolean
             {
-                "prompt": "My name is Bob Johnson, I'm 32 years old and I am not a student. My skills include React and Node.js.",
+                "prompt": "My name is Bob Johnson, I'm 32 years old and I am \
+                    not a student. My skills include React and Node.js.",
                 "response_format": person_schema,
                 "extract_field_path": "isStudent",
             },
@@ -563,7 +580,8 @@ def test_person_schema_extraction_integration(
                             "status": {
                                 "type": "string",
                                 "enum": ["active", "pending", "completed"],
-                                "description": "Project status must be one of: active, pending, completed",
+                                "description": "Project status must be one of: \
+                                    active, pending, completed",
                             }
                         },
                         "required": ["status"],
@@ -586,7 +604,8 @@ def test_person_schema_extraction_integration(
                             "status": {
                                 "type": "string",
                                 "enum": ["active", "pending", "completed"],
-                                "description": "Project status must be one of: active, pending, completed",
+                                "description": "Project status must be one of: \
+                                    active, pending, completed",
                             }
                         },
                         "required": ["status"],
@@ -609,7 +628,8 @@ def test_person_schema_extraction_integration(
                             "status": {
                                 "type": "string",
                                 "enum": ["active", "pending", "completed"],
-                                "description": "Project status must be one of: active, pending, completed",
+                                "description": "Project status must be one of: \
+                                    active, pending, completed",
                             }
                         },
                         "required": ["status"],
@@ -634,7 +654,9 @@ def test_enum_schema_extraction_integration(
     expected_value: Any,
     expected_status_code: int,
 ) -> None:
-    """Test that enum constraints are properly enforced in schema with field extraction."""
+    """
+    Test that enum constraints are properly enforced in schema with field extraction.
+    """
 
     # Mock the LLM to return appropriate responses for different prompts
     async def mock_process_with_llm(prompt_text: str, response_model=None, model=None):
@@ -695,7 +717,8 @@ def test_enum_schema_real_integration(
                     "status": {
                         "type": "string",
                         "enum": ["active", "pending", "completed"],
-                        "description": "Project status must be one of: active, pending, completed",
+                        "description": "Project status must be one of: \
+                            active, pending, completed",
                     }
                 },
                 "required": ["status"],
@@ -710,7 +733,8 @@ def test_enum_schema_real_integration(
             "expected_category": "active",
         },
         {
-            "prompt": "We are actively working on this project and it should be ready soon.",
+            "prompt": "We are actively working on this project and it should be \
+                ready soon.",
             "expected_category": "active",
         },
         {
@@ -718,7 +742,8 @@ def test_enum_schema_real_integration(
             "expected_category": "pending",
         },
         {
-            "prompt": "We have put the project on hold until we receive additional requirements.",
+            "prompt": "We have put the project on hold until we receive \
+                additional requirements.",
             "expected_category": "pending",
         },
         {
@@ -726,7 +751,8 @@ def test_enum_schema_real_integration(
             "expected_category": "completed",
         },
         {
-            "prompt": "All project tasks were finished last month and the final report has been submitted.",
+            "prompt": "All project tasks were finished last month and the final \
+                report has been submitted.",
             "expected_category": "completed",
         },
     ]
@@ -770,11 +796,13 @@ def test_enum_schema_real_integration(
         # Assert that the response is one of the allowed enum values
         assert result["actual"] in ["active", "pending", "completed"]
 
-        # Assert that the LLM correctly mapped the status description to the expected enum value
-        # Note: This assertion may occasionally fail due to LLM interpretation variations
-        # If it fails consistently, it may indicate that the LLM needs better prompting
+        # Assert that the LLM correctly mapped the status description to the
+        # expected enum value Note: This assertion may occasionally fail due to
+        # LLM interpretation variations. If it fails consistently, it may
+        # indicate that the LLM needs better prompting
         assert result["actual"] == result["expected"], (
-            f"Expected status '{result['expected']}' but got '{result['actual']}' for prompt: {result['prompt']}"
+            f"Expected status '{result['expected']}' but got \
+                '{result['actual']}' for prompt: {result['prompt']}"
         )
 
     # Test with a batch request
@@ -822,7 +850,8 @@ def test_enum_schema_real_integration(
 
         # Verify expected mapping (with same caveat as above)
         assert resp["response"] == expected_statuses[i], (
-            f"Expected status '{expected_statuses[i]}' but got '{resp['response']}' for batch item {i}"
+            f"Expected status '{expected_statuses[i]}' but got \
+                '{resp['response']}' for batch item {i}"
         )
 
 
@@ -831,5 +860,6 @@ def test_structured_output_integration(
     client: TestClient, auth_headers: Dict[str, str]
 ) -> None:
     # This test is not provided in the original file or the code block
-    # It's assumed to exist as it's called in the test_person_schema_extraction_integration function
+    # It's assumed to exist as it's called in the
+    # test_person_schema_extraction_integration function
     pass

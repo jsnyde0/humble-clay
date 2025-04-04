@@ -46,7 +46,7 @@ class TestEnumSchema:
                 "This project is in progress, but nearly done.",
                 ["active", "pending", "completed"],
                 "status",
-                "pending",  # "in progress, but nearly done" maps to "pending" based on actual LLM behavior
+                "pending",  # "in progress, but nearly done" maps to "pending"
             ),
             (
                 "on_hold_case",
@@ -63,13 +63,15 @@ class TestEnumSchema:
         """Test that enum constraints are properly enforced in schema."""
 
         # Mock the process_with_llm function to avoid actual API calls
-        # This mock will be configured differently for each test case to demonstrate the issue
+        # This mock will be configured differently for each test case to
+        # demonstrate the issue
         async def mock_process_with_llm(prompt_text, response_model=None, model=None):
             """Mock version of process_with_llm that returns test data."""
             # If response_model is provided, return an instance of it
             if response_model:
                 # Check if we're testing enums by looking at the schema properties
-                # This would normally work if enum constraints were properly passed to the model
+                # This would normally work if enum constraints were properly
+                # passed to the model
                 if (
                     hasattr(response_model, "__annotations__")
                     and extract_path in response_model.__annotations__
@@ -78,8 +80,9 @@ class TestEnumSchema:
                     result = {}
 
                     # For demonstration, return what the LLM would currently return
-                    # This simulates the current behavior where enum constraints are ignored
-                    # The test will fail because these values don't match our expectations
+                    # This simulates the current behavior where enum constraints
+                    # are ignored. The test will fail because these values don't
+                    # match our expectations
                     if test_id == "simple_value":
                         result[extract_path] = (
                             "active and progressing well"  # Not in enum
@@ -88,7 +91,7 @@ class TestEnumSchema:
                         result[extract_path] = "pending"  # This one matches enum
                     elif test_id == "inference_required":
                         result[extract_path] = (
-                            "The task has been completed as of yesterday"  # Not in enum
+                            "The task has been completed as of yesterday"
                         )
                     elif test_id == "similar_but_different":
                         result[extract_path] = (
@@ -227,6 +230,7 @@ class TestEnumSchema:
         # Expected values if enum constraints were enforced
         expected_values = ["active", "pending", "completed"]
 
-        # Currently, the test will fail because enum constraints aren't properly enforced
+        # Currently, the test will fail because enum constraints aren't properly
+        # enforced
         for i, expected in enumerate(expected_values):
             assert response.json()["responses"][i]["response"] == expected

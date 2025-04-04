@@ -203,7 +203,8 @@ def test_multiple_prompts_accepts_optional_fields(
     # Setup mock with different responses for different calls
     mock_llm = mocker.patch("src.api.main.process_with_llm")
 
-    # Define a dynamic side effect function to handle both structured and unstructured outputs
+    # Define a dynamic side effect function to handle both structured and
+    # unstructured outputs
     async def mock_llm_response(prompt, response_model=None, model=None):
         if response_model:
             # Return a model instance with the output field

@@ -43,7 +43,10 @@ def test_prompt_response_accepts_boolean():
 
 # This test ensures invalid types are still rejected
 def test_prompt_response_accepts_structured_data():
-    """Test PromptResponse accepts dictionaries and lists (structured data) in response field."""
+    """
+    Test PromptResponse accepts dictionaries and lists (structured data) in
+    response field.
+    """
     # Test with dictionary
     resp_dict = PromptResponse(status="success", response={"name": "John", "age": 30})
     assert resp_dict.response == {"name": "John", "age": 30}

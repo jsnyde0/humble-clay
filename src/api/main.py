@@ -53,7 +53,8 @@ async def health():
 
 def create_dynamic_model_from_schema(schema_name: str, schema_obj: Dict[str, Any]):
     """
-    Create a Pydantic model from a JSON schema, properly handling constraints like enums.
+    Create a Pydantic model from a JSON schema, properly handling constraints like
+    enums.
 
     Args:
         schema_name: Name for the dynamic model
@@ -107,7 +108,8 @@ def create_dynamic_model_from_schema(schema_name: str, schema_obj: Dict[str, Any
             model_fields[field_name] = (List[Any], Field(..., description=description))
 
         elif field_type == "object":
-            # Nested objects could be handled recursively, but for simplicity we use dict
+            # Nested objects could be handled recursively,
+            # but for simplicity we use dict
             model_fields[field_name] = (
                 Dict[str, Any],
                 Field(..., description=description),
@@ -230,7 +232,8 @@ async def process_prompts(
                         schema_name = json_schema.get("name", "DynamicSchema")
                         schema_obj = json_schema["schema"]
 
-                        # Use the helper function to create a model with proper enum handling
+                        # Use the helper function to create a model with proper
+                        # enum handling
                         response_model = create_dynamic_model_from_schema(
                             schema_name, schema_obj
                         )
