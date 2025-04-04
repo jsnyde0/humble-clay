@@ -299,7 +299,7 @@ async def process_prompts(
                                 "json_schema", {}
                             )
                             if json_schema and "schema" in json_schema:
-                                # Create a dynamic Pydantic model from the provided schema
+                                # Create a dynamic Pydantic model from provided schema
                                 schema_name = json_schema.get("name", "DynamicSchema")
                                 schema_obj = json_schema["schema"]
 
@@ -309,7 +309,8 @@ async def process_prompts(
                                     schema_name, schema_obj
                                 )
                                 logger.info(
-                                    f"Created dynamic schema for batch item: {schema_name}"
+                                    f"Created dynamic schema for batch item: \
+                                        {schema_name}"
                                 )
 
                         # Process the prompt with or without a schema
@@ -321,7 +322,7 @@ async def process_prompts(
                                 else None,
                             )
 
-                        # Handle different response types (dict, Pydantic model, or string)
+                        # Handle different response types (dict, Pydantic, or string)
                         if hasattr(response_data, "model_dump"):
                             # It's a Pydantic model
                             response_dict = response_data.model_dump()
@@ -330,15 +331,15 @@ async def process_prompts(
                             response_dict = response_data
                         else:
                             # It's a string or other type
-                            # For backward compatibility, return directly for string responses
-                            # unless field extraction is requested
+                            # For backward compatibility, return directly for
+                            # string responses unless field extraction is requested
                             if not prompt_request.extract_field_path:
                                 batch_responses.append(
                                     PromptResponse(response=response_data)
                                 )
                                 batch_completed += 1
 
-                                # Record first result time if this is the first completion
+                                # Record first result time if it's the first completion
                                 if (
                                     first_result_time is None
                                     and completed + batch_completed == 1
