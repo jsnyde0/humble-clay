@@ -29,7 +29,15 @@ uv pip install -r requirements.txt
 ```
 
 ### 4. Run the Server
+
+For local development, load environment variables from your `.env` file:
 ```bash
+uv run uvicorn src.api.main:app --reload --env-file .env
+```
+
+Alternatively, export variables manually before running:
+```bash
+export $(cat .env | xargs)
 uv run uvicorn src.api.main:app --reload
 ```
 

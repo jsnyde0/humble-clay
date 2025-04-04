@@ -24,6 +24,7 @@ logfire.configure(
     service_version="0.1.0",
     environment="development",  # Change to "production" in production environment
 )
+logfire.info("Logfire configured in main.py")
 
 app = FastAPI(
     title="Humble Clay API",
