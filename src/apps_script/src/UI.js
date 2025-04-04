@@ -18,6 +18,43 @@ function showSidebarUI() {
     var extractFieldPathFromSyntax = ${extractFieldPathFromSyntax.toString()};
   `;
   
+  // Add prompt editor initialization
+  htmlOutput.promptEditorInit = `
+    function extractColumnReferences(template) {
+      if (!template) return [];
+      const matches = template.match(/\{([A-Z]+)\}/g) || [];
+      return matches.map(match => match.slice(1, -1));
+    }
+
+    function validatePromptTemplate(template) {
+      if (!template || template.trim() === '') return false;
+      const columnRefs = extractColumnReferences(template) || [];
+      return columnRefs.length > 0;
+    }
+
+    function validateRowRange(startRow, endRow) {
+      if (!startRow && !endRow) return true; // Empty means use all rows
+      const start = parseInt(startRow);
+      const end = parseInt(endRow);
+      if (isNaN(start) || isNaN(end)) return false;
+      if (start < 1 || end < 1) return false;
+      return start <= end;
+    }
+
+    function updateStatusIndicator(status, message) {
+      const indicator = document.getElementById('status-indicator');
+      const text = document.getElementById('status-text');
+      
+      indicator.className = 'status-indicator ' + status;
+      text.textContent = status === 'processing' ? 'Processing...' : message;
+    }
+
+    function validateColumnReferences(template) {
+      const refs = extractColumnReferences(template);
+      return refs.every(ref => /^[A-Z]+$/.test(ref));
+    }
+  `;
+  
   // Evaluate the template and set properties
   const html = htmlOutput.evaluate()
     .setTitle('Humble Clay')

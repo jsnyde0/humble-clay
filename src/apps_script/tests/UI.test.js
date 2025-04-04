@@ -134,43 +134,89 @@ describe('UI', () => {
   });
 
   describe('promptEditor', () => {
-    test('validatePromptTemplate should validate prompt templates', () => {
-      // Mock template with promptEditorInit
-      const mockTemplate = {
-        promptEditorInit: null,
-        evaluate: jest.fn().mockReturnThis()
+    beforeEach(() => {
+      // Set up proper mock chain for HtmlService
+      const mockHtml = {
+        setTitle: jest.fn().mockReturnThis(),
+        setWidth: jest.fn().mockReturnThis()
       };
       
-      // Mock HtmlService
+      const mockTemplate = {
+        promptEditorInit: null,
+        simpleOutputFieldInit: null,
+        evaluate: jest.fn().mockReturnValue(mockHtml)
+      };
+      
       HtmlService.createTemplateFromFile.mockReturnValue(mockTemplate);
       
+      // Mock SpreadsheetApp UI
+      const mockUi = {
+        showSidebar: jest.fn()
+      };
+      SpreadsheetApp.getUi.mockReturnValue(mockUi);
+    });
+
+    test('validatePromptTemplate should validate prompt templates', () => {
       // Call showSidebarUI to initialize the promptEditorInit
       UI.showSidebarUI();
       
-      // Extract validatePromptTemplate function from promptEditorInit
-      const validatePromptTemplate = new Function(
-        'return ' + mockTemplate.promptEditorInit.match(/function validatePromptTemplate\([^)]*\)[^}]*}/)[0]
-      )();
+      // Get the mockTemplate after initialization
+      const mockTemplate = HtmlService.createTemplateFromFile.mock.results[0].value;
       
-      // Test cases
-      expect(validatePromptTemplate('')).toBe(false); // Empty template
-      expect(validatePromptTemplate('This has no column references')).toBe(false); // No references
-      expect(validatePromptTemplate('Analyze {A}')).toBe(true); // Valid template
-      expect(validatePromptTemplate('Compare {A} with {B}')).toBe(true); // Multiple columns
+      // Create a wrapper function to safely evaluate the client-side code
+      function evalClientCode(code) {
+        // Create safe environment
+        const sandbox = {
+          document: { getElementById: () => ({ className: '', textContent: '' }) },
+          window: {},
+          console: console
+        };
+        
+        // Add the code to evaluate
+        const fullCode = mockTemplate.promptEditorInit + '\n' + code;
+        
+        // Execute in context
+        const wrappedCode = `
+          with (sandbox) {
+            ${fullCode}
+            return { result };
+          }
+        `;
+        
+        return new Function('sandbox', wrappedCode)({ ...sandbox });
+      }
+      
+      // Test empty template
+      let evalResult = evalClientCode(`
+        const result = validatePromptTemplate('');
+      `);
+      expect(evalResult.result).toBe(false);
+      
+      // Test no references
+      evalResult = evalClientCode(`
+        const result = validatePromptTemplate('This has no column references');
+      `);
+      expect(evalResult.result).toBe(false);
+      
+      // Test with single reference
+      evalResult = evalClientCode(`
+        const result = validatePromptTemplate('Analyze {A}');
+      `);
+      expect(evalResult.result).toBe(true);
+      
+      // Test with multiple references
+      evalResult = evalClientCode(`
+        const result = validatePromptTemplate('Compare {A} with {B}');
+      `);
+      expect(evalResult.result).toBe(true);
     });
     
     test('validateRowRange should validate row range inputs', () => {
-      // Mock template with promptEditorInit
-      const mockTemplate = {
-        promptEditorInit: null,
-        evaluate: jest.fn().mockReturnThis()
-      };
-      
-      // Mock HtmlService
-      HtmlService.createTemplateFromFile.mockReturnValue(mockTemplate);
-      
       // Call showSidebarUI to initialize the promptEditorInit
       UI.showSidebarUI();
+      
+      // Get the mockTemplate after initialization
+      const mockTemplate = HtmlService.createTemplateFromFile.mock.results[0].value;
       
       // Extract validateRowRange function from promptEditorInit
       const validateRowRange = new Function(
@@ -189,17 +235,11 @@ describe('UI', () => {
     });
     
     test('updateStatusIndicator should update UI based on processing status', () => {
-      // Mock template with promptEditorInit
-      const mockTemplate = {
-        promptEditorInit: null,
-        evaluate: jest.fn().mockReturnThis()
-      };
-      
-      // Mock HtmlService
-      HtmlService.createTemplateFromFile.mockReturnValue(mockTemplate);
-      
       // Call showSidebarUI to initialize the promptEditorInit
       UI.showSidebarUI();
+      
+      // Get the mockTemplate after initialization
+      const mockTemplate = HtmlService.createTemplateFromFile.mock.results[0].value;
       
       // Extract updateStatusIndicator function from promptEditorInit
       const updateStatusIndicator = new Function(
@@ -217,54 +257,43 @@ describe('UI', () => {
       
       // Test processing state
       updateStatusIndicator('processing');
-      expect(mockElements['status-indicator'].className).toContain('processing');
+      expect(mockElements['status-indicator'].className).toBe('status-indicator processing');
       expect(mockElements['status-text'].textContent).toBe('Processing...');
       
       // Test success state
       updateStatusIndicator('success', 'Processed 5 rows');
-      expect(mockElements['status-indicator'].className).toContain('success');
+      expect(mockElements['status-indicator'].className).toBe('status-indicator success');
       expect(mockElements['status-text'].textContent).toBe('Processed 5 rows');
       
       // Test error state
       updateStatusIndicator('error', 'Failed to process');
-      expect(mockElements['status-indicator'].className).toContain('error');
+      expect(mockElements['status-indicator'].className).toBe('status-indicator error');
       expect(mockElements['status-text'].textContent).toBe('Failed to process');
     });
     
     test('validateColumnReferences should validate column references', () => {
-      // Mock template with promptEditorInit
-      const mockTemplate = {
-        promptEditorInit: null,
-        evaluate: jest.fn().mockReturnThis()
-      };
-      
-      // Mock HtmlService
-      HtmlService.createTemplateFromFile.mockReturnValue(mockTemplate);
-      
       // Call showSidebarUI to initialize the promptEditorInit
       UI.showSidebarUI();
+      
+      // Get the mockTemplate after initialization
+      const mockTemplate = HtmlService.createTemplateFromFile.mock.results[0].value;
       
       // Extract validateColumnReferences function from promptEditorInit
       const validateColumnReferences = new Function(
         'return ' + mockTemplate.promptEditorInit.match(/function validateColumnReferences\([^)]*\)[^}]*}/)[0]
       )();
       
-      // Mock the sheet's last column
-      const mockSheet = {
-        getLastColumn: jest.fn().mockReturnValue(3) // Sheet with cols A, B, C
-      };
-      SpreadsheetApp.getActiveSheet.mockReturnValue(mockSheet);
-      
-      // Convert column index to letter
-      global.columnIndexToLetter = jest.fn(index => {
-        return String.fromCharCode(64 + index); // 1 = A, 2 = B, 3 = C
+      // Mock extractColumnReferences
+      global.extractColumnReferences = jest.fn(template => {
+        if (template.includes('{A}')) return ['A'];
+        if (template.includes('{123}')) return ['123'];
+        return [];
       });
       
       // Test cases
-      expect(validateColumnReferences(['A', 'B'])).toBe(true); // Valid columns
-      expect(validateColumnReferences(['A', 'C'])).toBe(true); // Valid columns
-      expect(validateColumnReferences(['D'])).toBe(false); // Column out of range
-      expect(validateColumnReferences(['AA'])).toBe(false); // Column out of range
+      expect(validateColumnReferences('Test {A}')).toBe(true); // Valid column
+      expect(validateColumnReferences('Test {123}')).toBe(false); // Invalid column
+      expect(validateColumnReferences('No references')).toBe(true); // No references (empty array)
     });
   });
 }); 

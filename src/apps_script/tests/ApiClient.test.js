@@ -259,175 +259,179 @@ describe('ApiClient', () => {
   describe('makeApiRequest', () => {
     beforeEach(() => {
       resetAllMocks();
-      // Mock UrlFetchApp.fetch
+      // Mock UrlFetchApp.fetch to return batch format by default for this suite
       global.UrlFetchApp = {
         fetch: jest.fn().mockReturnValue({
           getResponseCode: jest.fn().mockReturnValue(200),
-          getContentText: jest.fn().mockReturnValue('{"response":"test"}')
+          getContentText: jest.fn().mockReturnValue(JSON.stringify({
+            responses: [ { response: "Default fetch response", status: "success" } ]
+          }))
         })
       };
-      // Mock PropertiesService
+      // Mock PropertiesService (needed by makeApiRequest)
       global.PropertiesService = {
         getScriptProperties: jest.fn().mockReturnValue({
           getProperty: jest.fn((key) => {
-            if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_12345678901234567890123456789012';
-            if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
+            if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_1234567890abcdef1234567890abcdef'; // Use a consistent key
+            if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com'; // Use a consistent URL
             return null;
           })
         })
       };
+      // Mock Utilities.sleep for retry tests
+      global.Utilities = { sleep: jest.fn() };
     });
 
-    test('correctly formats JSON schema for the API', () => {
-      // Test schema
-      const testSchema = {
-        "type": "object",
-        "properties": {
-          "age": { "type": "number" }
-        },
-        "required": ["age"]
-      };
-      
-      // Test input
+    test('correctly formats JSON schema for the API (using BATCH endpoint)', () => {
+      const testSchema = { type: "object", properties: { age: { type: "number" } }, required: ["age"] };
       const input = "I'm 35 years old";
+
+      // Mock fetch implementation for this specific test to verify payload
+      UrlFetchApp.fetch.mockImplementationOnce((url, options) => {
+         const payload = JSON.parse(options.payload);
+         expect(url).toBe('https://api.example.com/api/v1/prompts'); // Verify BATCH endpoint
+         expect(payload.prompts).toHaveLength(1);
+         expect(payload.prompts[0].prompt).toBe(input.trim());
+         expect(payload.prompts[0].response_format.type).toBe('json_schema');
+         expect(payload.prompts[0].response_format.json_schema.schema).toEqual(testSchema);
+         // Return a valid batch response structure matching what the function expects
+         return {
+            getResponseCode: jest.fn().mockReturnValue(200),
+            getContentText: jest.fn().mockReturnValue(JSON.stringify({
+                responses: [{ status: 'success', response: { age: 35 } }]
+            }))
+         };
+      });
+
+      // Execute global function
+      makeApiRequest(input, { responseFormat: testSchema }); 
+
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    test('correctly formats extractFieldPath for the API (using BATCH endpoint)', () => {
+      const testSchema = { type: "object", properties: { age: { type: "number" } }, required: ["age"] };
+      const fieldPath = "age";
+      const input = "I'm 35 years old";
+
+      // Mock fetch implementation for this specific test
+       UrlFetchApp.fetch.mockImplementationOnce((url, options) => {
+          const payload = JSON.parse(options.payload);
+          expect(url).toBe('https://api.example.com/api/v1/prompts');
+          expect(payload.prompts).toHaveLength(1);
+          expect(payload.prompts[0].prompt).toBe(input.trim());
+          expect(payload.prompts[0].extract_field_path).toBe(fieldPath);
+          expect(payload.prompts[0].response_format.json_schema.schema).toEqual(testSchema);
+           // Return a valid batch response structure
+           return {
+              getResponseCode: jest.fn().mockReturnValue(200),
+              getContentText: jest.fn().mockReturnValue(JSON.stringify({
+                  // Simulate extracted value being returned
+                  responses: [{ status: 'success', response: 35 } ] 
+              }))
+           };
+      });
       
-      // Call makeApiRequest with schema
-      makeApiRequest(input, { responseFormat: testSchema });
-      
-      // Get the call arguments from UrlFetchApp.fetch
-      const fetchCall = UrlFetchApp.fetch.mock.calls[0];
-      expect(fetchCall[0]).toBe('https://api.example.com/api/v1/prompt');
-      
-      // Parse the payload to verify format
-      const payload = JSON.parse(fetchCall[1].payload);
-      
-      // Verify the payload structure
-      expect(payload).toHaveProperty('prompt', input.trim());
-      expect(payload).toHaveProperty('response_format');
-      expect(payload.response_format).toHaveProperty('type', 'json_schema');
-      expect(payload.response_format).toHaveProperty('json_schema');
-      expect(payload.response_format.json_schema).toHaveProperty('name', 'DynamicSchema');
-      expect(payload.response_format.json_schema).toHaveProperty('schema');
-      expect(payload.response_format.json_schema.schema).toEqual(testSchema);
+      // Execute global function
+      makeApiRequest(input, { responseFormat: testSchema, extractFieldPath: fieldPath }); 
+
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should make successful API request and return the single response from batch', () => {
+      const testInput = 'Test input';
+      const expectedSingleResponse = { response: 'Test response', status: 'success' };
+
+      // Configure fetch mock directly for this test's expected response
+      UrlFetchApp.fetch.mockImplementationOnce(() => ({
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(JSON.stringify({
+          responses: [expectedSingleResponse] // Ensure it's the batch format
+        }))
+      }));
+
+      // Execute global function
+      const result = makeApiRequest(testInput);
+
+      // Verify the *single* extracted response is returned
+      expect(result).toEqual(expectedSingleResponse);
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+      // Verify payload structure was correct (batch with one prompt)
+      const payload = JSON.parse(UrlFetchApp.fetch.mock.calls[0][1].payload);
+      expect(payload.prompts).toHaveLength(1);
+      expect(payload.prompts[0].prompt).toBe(testInput);
     });
     
-    test('correctly formats extractFieldPath for the API', () => {
-      // Test schema and field path
-      const testSchema = {
-        "type": "object",
-        "properties": {
-          "age": { "type": "number" }
-        },
-        "required": ["age"]
-      };
-      const fieldPath = "age";
-      
-      // Test input
-      const input = "I'm 35 years old";
-      
-      // Call makeApiRequest with schema and field path
-      makeApiRequest(input, { 
-        responseFormat: testSchema,
-        extractFieldPath: fieldPath 
-      });
-      
-      // Get the call arguments from UrlFetchApp.fetch
-      const fetchCall = UrlFetchApp.fetch.mock.calls[0];
-      
-      // Parse the payload to verify format
-      const payload = JSON.parse(fetchCall[1].payload);
-      
-      // Verify the field path is included
-      expect(payload).toHaveProperty('extract_field_path', fieldPath);
+    // Test previously named 'should include schema and field path in request payload'
+    // Renamed for clarity as formatting is tested above.
+    it('should handle response when schema and field path are used', () => {
+       const schemaObj = { type: 'object', properties: { name: { type: 'string' }}};
+       const fieldPath = 'name';
+       const expectedResponse = { status: 'success', response: 'ExtractedName' }; // Simulate extracted field
+
+        // Mock fetch for this test
+        UrlFetchApp.fetch.mockImplementationOnce((url, options) => {
+          // Payload verification could be added here if needed, but focus is response
+           return {
+              getResponseCode: jest.fn().mockReturnValue(200),
+              getContentText: jest.fn().mockReturnValue(JSON.stringify({
+                  responses: [expectedResponse] 
+              }))
+           };
+        });
+
+        // Execute global function
+        const result = makeApiRequest('Test input', { responseFormat: schemaObj, extractFieldPath: fieldPath });
+
+        expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+        // Verify the extracted response is returned correctly
+        expect(result).toEqual(expectedResponse);
     });
 
-    it('should make successful API request', () => {
-      // Setup
-      const testInput = 'Test input';
-      const expectedOutput = { response: 'Test response' };
-      
-      // Configure PropertiesService mock
-      PropertiesService.getScriptProperties().getProperty.mockImplementation(key => {
-        if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_1234567890abcdef1234567890abcdef';
-        if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
-        return null;
-      });
-      
-      UrlFetchApp.fetch.mockReturnValue({
-        getResponseCode: jest.fn().mockReturnValue(200),
-        getContentText: jest.fn().mockReturnValue(JSON.stringify(expectedOutput))
-      });
-      
-      // Execute
-      const result = makeApiRequest(testInput);
-      
-      // Verify
-      expect(result).toEqual(expectedOutput);
-      expect(UrlFetchApp.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/api/v1/prompt',
-        expect.objectContaining({
-          payload: JSON.stringify({ prompt: 'Test input' })
-        })
-      );
-    });
-
-    test('should include schema and field path in request payload', () => {
-      // Setup
-      resetAllMocks();
-      
-      // Set up test data
-      const schemaObj = { type: 'object', properties: { name: { type: 'string' }}};
-      const expectedSchema = {
-        type: "json_schema",
-        json_schema: {
-          name: "DynamicSchema",
-          schema: schemaObj
-        }
-      };
-      
-      const expectedPayload = {
-        prompt: 'Test input',
-        response_format: expectedSchema,
-        extract_field_path: 'name'
-      };
-      
-      // Set up mocks
-      UrlFetchApp.fetch.mockReturnValue({
-        getResponseCode: jest.fn().mockReturnValue(200),
-        getContentText: jest.fn().mockReturnValue('{"response":"test"}')
-      });
-      
-      PropertiesService.getScriptProperties().getProperty.mockImplementation((key) => {
-        if (key === 'HUMBLE_CLAY_API_KEY') return 'hc_1234567890abcdef1234567890abcdef';
-        if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
-        return null;
-      });
-      
-      // Call function with schema and field path
-      makeApiRequest('Test input', { 
-        responseFormat: schemaObj, 
-        extractFieldPath: 'name' 
-      });
-      
-      // Verify
-      expect(UrlFetchApp.fetch).toHaveBeenCalledWith(
-        'https://api.example.com/api/v1/prompt',
-        expect.objectContaining({
-          payload: JSON.stringify(expectedPayload)
-        })
-      );
-    });
 
     it('should throw error if API key is not configured', () => {
-      // Setup
+      // Override PropertiesService mock for this specific test
       PropertiesService.getScriptProperties().getProperty.mockImplementation(key => {
-        if (key === 'HUMBLE_CLAY_API_KEY') return null;
+        if (key === 'HUMBLE_CLAY_API_KEY') return null; // No API key
         if (key === 'HUMBLE_CLAY_API_URL') return 'https://api.example.com';
         return null;
       });
+      // Execute global function
+      expect(() => makeApiRequest('Test')).toThrow('API key not configured'); 
+    });
       
-      // Verify
-      expect(() => makeApiRequest('Test')).toThrow('API key not configured');
+    // Add test for retry logic
+    it('should retry on retryable errors (e.g., 429)', () => {
+        const testInput = 'Retry test';
+        const successResponse = { response: 'Success after retry', status: 'success' };
+        let callCount = 0;
+
+        // Mock fetch to fail first, then succeed
+        UrlFetchApp.fetch.mockImplementation(() => {
+            callCount++;
+            if (callCount === 1) { // First call fails with 429
+                return {
+                    getResponseCode: jest.fn().mockReturnValue(429),
+                    getContentText: jest.fn().mockReturnValue('Rate limit exceeded')
+                };
+            }
+            // Second call succeeds (returning batch format)
+            return {
+                getResponseCode: jest.fn().mockReturnValue(200),
+                getContentText: jest.fn().mockReturnValue(JSON.stringify({ responses: [successResponse] }))
+            };
+        });
+        
+        // Mock sleep (already mocked in beforeEach)
+        // Utilities.sleep.mockImplementation(() => {}); 
+        
+        // Execute global function (assuming default retries = 3)
+        const result = makeApiRequest(testInput);
+        
+        // Verify
+        expect(result).toEqual(successResponse); // Returns the single extracted response
+        expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(2);
+        expect(Utilities.sleep).toHaveBeenCalledTimes(1); // Called once before the retry
     });
   });
 
@@ -734,164 +738,6 @@ describe('ApiClient', () => {
       
       // Verify result
       expect(result).toEqual(['42']);
-    });
-  });
-
-  describe('processPrompt', () => {
-    it('should replace column references in prompt template with row values', () => {
-      // Setup
-      const template = 'Analyze this data: {A} and compare with {B}';
-      const rowData = { 'A': 'Value A', 'B': 'Value B' };
-      
-      // Expected result after replacing references
-      const expectedPrompt = 'Analyze this data: Value A and compare with Value B';
-      
-      // Mock API response
-      makeApiRequest.mockReturnValue({ response: 'API result' });
-      
-      // Execute
-      const result = processPrompt(template, rowData);
-      
-      // Verify
-      expect(result).toBe('API result');
-      expect(makeApiRequest).toHaveBeenCalledWith(expectedPrompt, {});
-    });
-    
-    it('should handle multiple references to the same column', () => {
-      // Setup
-      const template = 'Column A appears twice: {A} and again {A}';
-      const rowData = { 'A': 'Value A' };
-      
-      // Expected result after replacing references
-      const expectedPrompt = 'Column A appears twice: Value A and again Value A';
-      
-      // Mock API response
-      makeApiRequest.mockReturnValue({ response: 'API result' });
-      
-      // Execute
-      const result = processPrompt(template, rowData);
-      
-      // Verify
-      expect(makeApiRequest).toHaveBeenCalledWith(expectedPrompt, {});
-    });
-    
-    it('should handle special characters in values', () => {
-      // Setup
-      const template = 'Special characters in {A}';
-      const rowData = { 'A': 'Value with $, \\, and "quotes"' };
-      
-      // Expected result after replacing references
-      const expectedPrompt = 'Special characters in Value with $, \\, and "quotes"';
-      
-      // Mock API response
-      makeApiRequest.mockReturnValue({ response: 'API result' });
-      
-      // Execute
-      const result = processPrompt(template, rowData);
-      
-      // Verify
-      expect(makeApiRequest).toHaveBeenCalledWith(expectedPrompt, {});
-    });
-    
-    it('should throw error when column reference is missing from data', () => {
-      // Setup
-      const template = 'Analyze {A} and {C}';
-      const rowData = { 'A': 'Value A', 'B': 'Value B' }; // C is missing
-      
-      // Execute & Verify
-      expect(() => processPrompt(template, rowData)).toThrow('Missing data for column reference {C}');
-    });
-  });
-  
-  describe('processPromptBatch', () => {
-    it('should process multiple prompts in a batch', () => {
-      // Setup
-      const templates = [
-        'Analyze {A}',
-        'Process {B}'
-      ];
-      
-      const rowsData = [
-        { 'A': 'Value A1', 'B': 'Value B1' },
-        { 'A': 'Value A2', 'B': 'Value B2' }
-      ];
-      
-      // Expected prompts after replacing references
-      const expectedPrompts = [
-        'Analyze Value A1',
-        'Process Value B1'
-      ];
-      
-      // Mock batch API response
-      processBatch.mockReturnValue([
-        { response: 'Result 1' },
-        { response: 'Result 2' }
-      ]);
-      
-      // Execute
-      const results = processPromptBatch(templates, rowsData);
-      
-      // Verify
-      expect(results).toEqual(['Result 1', 'Result 2']);
-      expect(processBatch).toHaveBeenCalledWith(expectedPrompts, {});
-    });
-    
-    it('should handle API errors in batch responses', () => {
-      // Setup
-      const templates = ['Analyze {A}', 'Process {B}'];
-      const rowsData = [
-        { 'A': 'Value A', 'B': 'Value B' },
-        { 'A': 'Value A2', 'B': 'Value B2' }
-      ];
-      
-      // Mock batch API response with one error
-      processBatch.mockReturnValue([
-        { response: 'Result 1' },
-        { status: 'error', error: 'API error for prompt 2' }
-      ]);
-      
-      // Execute
-      const results = processPromptBatch(templates, rowsData);
-      
-      // Verify - should return error message for the second item
-      expect(results).toEqual(['Result 1', 'Error: API error for prompt 2']);
-    });
-    
-    it('should handle empty response from API', () => {
-      // Setup
-      const templates = ['Analyze {A}'];
-      const rowsData = [{ 'A': 'Value A' }];
-      
-      // Mock empty API response
-      processBatch.mockReturnValue([{ response: '' }]);
-      
-      // Execute
-      const results = processPromptBatch(templates, rowsData);
-      
-      // Verify - should return empty string
-      expect(results).toEqual(['']);
-    });
-    
-    it('should retry on retryable errors', () => {
-      // Setup
-      const templates = ['Analyze {A}'];
-      const rowsData = [{ 'A': 'Value A' }];
-      
-      // Mock processBatch to throw rate limit error then succeed
-      processBatch
-        .mockImplementationOnce(() => { throw new Error('Rate limit exceeded'); })
-        .mockReturnValue([{ response: 'Result after retry' }]);
-      
-      // Mock Utilities.sleep
-      Utilities.sleep.mockImplementation(() => {}); // Do nothing
-      
-      // Execute
-      const results = processPromptBatch(templates, rowsData, { maxRetries: 2 });
-      
-      // Verify
-      expect(results).toEqual(['Result after retry']);
-      expect(processBatch).toHaveBeenCalledTimes(2); // Called twice due to retry
-      expect(Utilities.sleep).toHaveBeenCalled(); // Sleep was called for backoff
     });
   });
 }); 

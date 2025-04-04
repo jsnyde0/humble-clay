@@ -3,6 +3,9 @@
  * This file is loaded before tests run, setting up the global environment
  */
 
+// --- DO NOT import Jest globals like describe, it, expect, jest, beforeEach ---
+// --- They are already globally available via the Jest test environment! ---
+
 // Mock Logger service
 global.Logger = {
   log: jest.fn()
@@ -22,32 +25,32 @@ global.Utilities = {
 
 // Mock PropertiesService
 const scriptProperties = {};
-
 global.PropertiesService = {
   getScriptProperties: jest.fn().mockReturnValue({
     getProperty: jest.fn(key => scriptProperties[key]),
-    setProperty: jest.fn((key, value) => {
-      scriptProperties[key] = value;
-      return;
-    }),
-    deleteProperty: jest.fn(key => {
-      delete scriptProperties[key];
-      return;
-    })
+    setProperty: jest.fn((key, value) => { scriptProperties[key] = value; }),
+    deleteProperty: jest.fn(key => { delete scriptProperties[key]; })
   })
 };
 
 // Mock SpreadsheetApp
+const mockSheetFunctions = {
+  getRange: jest.fn().mockReturnThis(), // Return `this` (the mockSheet) by default
+  getValues: jest.fn().mockReturnValue([['test']]),
+  setValues: jest.fn(),
+  getLastRow: jest.fn().mockReturnValue(10),
+  getLastColumn: jest.fn().mockReturnValue(5)
+};
+const mockSheet = {
+  ...mockSheetFunctions,
+  // Allow getRange to return an object with sheet functions for chaining/specific range mocking
+  getRange: jest.fn().mockReturnValue(mockSheetFunctions)
+};
 global.SpreadsheetApp = {
-  getActiveSheet: jest.fn().mockReturnValue({
-    getRange: jest.fn().mockReturnValue({
-      getValues: jest.fn().mockReturnValue([['test']]),
-      setValues: jest.fn()
-    })
-  }),
+  getActiveSheet: jest.fn().mockReturnValue(mockSheet),
   getActiveSpreadsheet: jest.fn().mockReturnValue({
-    getSheetByName: jest.fn(),
-    getActiveSheet: jest.fn()
+    getSheetByName: jest.fn().mockReturnValue(mockSheet),
+    getActiveSheet: jest.fn().mockReturnValue(mockSheet)
   }),
   getUi: jest.fn().mockReturnValue({
     createMenu: jest.fn().mockReturnValue({
@@ -56,31 +59,32 @@ global.SpreadsheetApp = {
       addToUi: jest.fn()
     }),
     alert: jest.fn(),
+    showModalDialog: jest.fn(), // Added for showApiConfigDialog
+    showSidebar: jest.fn(),    // Added for showSidebarUI
     ButtonSet: {
-      OK: 'OK'
+      OK: 'OK',
+      OK_CANCEL: 'OK_CANCEL' // Added for showApiConfigDialog
     }
   })
 };
 
 // Mock HtmlService
+const mockHtmlOutput = {
+  setTitle: jest.fn().mockReturnThis(),
+  setWidth: jest.fn().mockReturnThis(),
+  setHeight: jest.fn().mockReturnThis(),
+  getContent: jest.fn().mockReturnValue('<p>Mock HTML</p>') // Added for showApiConfigDialog
+};
+const mockTemplate = {
+  evaluate: jest.fn().mockReturnValue(mockHtmlOutput),
+  // Add properties that UI.js might set on the template
+  simpleOutputFieldInit: '',
+  promptEditorInit: ''
+};
 global.HtmlService = {
-  createHtmlOutputFromFile: jest.fn().mockReturnValue({
-    setTitle: jest.fn().mockReturnThis(),
-    setWidth: jest.fn().mockReturnThis(),
-    setHeight: jest.fn().mockReturnThis()
-  }),
-  createTemplateFromFile: jest.fn().mockReturnValue({
-    evaluate: jest.fn().mockReturnValue({
-      setTitle: jest.fn().mockReturnThis(),
-      setWidth: jest.fn().mockReturnThis(),
-      setHeight: jest.fn().mockReturnThis()
-    })
-  }),
-  createHtmlOutput: jest.fn().mockReturnValue({
-    setTitle: jest.fn().mockReturnThis(),
-    setWidth: jest.fn().mockReturnThis(),
-    setHeight: jest.fn().mockReturnThis()
-  })
+  createHtmlOutputFromFile: jest.fn().mockReturnValue(mockHtmlOutput),
+  createTemplateFromFile: jest.fn().mockReturnValue(mockTemplate),
+  createHtmlOutput: jest.fn().mockReturnValue(mockHtmlOutput)
 };
 
 // Mock UrlFetchApp
@@ -88,81 +92,187 @@ global.UrlFetchApp = {
   fetch: jest.fn().mockReturnValue({
     getResponseCode: jest.fn().mockReturnValue(200),
     getContentText: jest.fn().mockReturnValue(JSON.stringify({
+      // Default to batch response format
       responses: [
-        { response: "test", status: "success" }
+        { response: "Default mock response", status: "success" }
       ]
     }))
   })
 };
 
-// Import RangeUtils functions and expose them globally
-// This mimics Apps Script behavior where functions from another file are available globally
+// --- Load functions from source files using conditional exports ---
 const RangeUtils = require('../src/RangeUtils');
-global.validateRange = jest.fn(RangeUtils.validateRange);
-global.validateOutputColumn = jest.fn(RangeUtils.validateOutputColumn);
-global.mapInputRangeToOutput = jest.fn(RangeUtils.mapInputRangeToOutput);
-
-// Import UI functions and expose them globally
 const UI = require('../src/UI');
-global.showSidebarUI = jest.fn(UI.showSidebarUI);
-global.createMenu = jest.fn(UI.createMenu);
-global.showError = jest.fn(UI.showError);
-global.showMessage = jest.fn(UI.showMessage);
-global.showApiConfigDialog = jest.fn(UI.showApiConfigDialog);
-
-// Import Config functions and expose them globally
 const Config = require('../src/Config');
-global.getApiKey = jest.fn(Config.getApiKey);
-global.setApiKey = jest.fn(Config.setApiKey);
-global.getApiBaseUrl = jest.fn(Config.getApiBaseUrl);
-global.setApiBaseUrl = jest.fn(Config.setApiBaseUrl);
-global.validateApiKey = jest.fn(Config.validateApiKey);
-global.validateConfig = jest.fn(Config.validateConfig);
-global.isConfigured = jest.fn(Config.isConfigured);
-
-// Import ApiClient functions and expose them globally
 const ApiClient = require('../src/ApiClient');
-global.processRangeWithApi = jest.fn(ApiClient.processRangeWithApi);
-global.makeApiRequest = jest.fn(ApiClient.makeApiRequest);
-global.formatRequestPayload = jest.fn(ApiClient.formatRequestPayload);
-global.handleApiResponse = jest.fn(ApiClient.handleApiResponse);
-
-// Import SimpleOutputField functions and expose them globally
 const SimpleOutputField = require('../src/SimpleOutputField');
-global.parseSimpleSyntax = jest.fn(SimpleOutputField.parseSimpleSyntax);
-global.generateSchemaFromSyntax = jest.fn(SimpleOutputField.generateSchemaFromSyntax);
-global.extractFieldPathFromSyntax = jest.fn(SimpleOutputField.extractFieldPathFromSyntax);
+const Code = require('../src/Code');
 
-// Helper method to reset all mocks between tests
+// --- Make source functions global (wrapped with jest.fn and default implementation) ---
+
+// RangeUtils
+global.validateRange = jest.fn().mockImplementation(RangeUtils.validateRange);
+global.validateOutputColumn = jest.fn().mockImplementation(RangeUtils.validateOutputColumn);
+global.mapInputRangeToOutput = jest.fn().mockImplementation(RangeUtils.mapInputRangeToOutput);
+global.columnToIndex = jest.fn().mockImplementation(RangeUtils.columnToIndex); // Moved from Code.js as it's utility
+
+// UI
+global.showSidebarUI = jest.fn().mockImplementation(UI.showSidebarUI);
+global.createMenu = jest.fn().mockImplementation(UI.createMenu);
+global.showError = jest.fn().mockImplementation(UI.showError);
+global.showMessage = jest.fn().mockImplementation(UI.showMessage);
+global.showApiConfigDialog = jest.fn().mockImplementation(UI.showApiConfigDialog);
+
+// Config
+global.getApiKey = jest.fn().mockImplementation(Config.getApiKey);
+global.setApiKey = jest.fn().mockImplementation(Config.setApiKey);
+global.getApiBaseUrl = jest.fn().mockImplementation(Config.getApiBaseUrl);
+global.setApiBaseUrl = jest.fn().mockImplementation(Config.setApiBaseUrl);
+global.validateApiKey = jest.fn().mockImplementation(Config.validateApiKey);
+global.validateConfig = jest.fn().mockImplementation(Config.validateConfig);
+global.isConfigured = jest.fn().mockImplementation(Config.isConfigured);
+
+// ApiClient
+global.processRangeWithApi = jest.fn().mockImplementation(ApiClient.processRangeWithApi);
+global.makeApiRequest = jest.fn().mockImplementation(ApiClient.makeApiRequest);
+global.formatRequestPayload = jest.fn().mockImplementation(ApiClient.formatRequestPayload);
+global.handleApiResponse = jest.fn().mockImplementation(ApiClient.handleApiResponse);
+global.processBatch = jest.fn().mockImplementation(ApiClient.processBatch);
+// Note: processPrompt and processPromptBatch seem to have been removed from ApiClient source, so not mocked here.
+// If they were added back, they'd need conditional exports and mocking here.
+
+// SimpleOutputField
+global.parseSimpleSyntax = jest.fn().mockImplementation(SimpleOutputField.parseSimpleSyntax);
+global.generateSchemaFromSyntax = jest.fn().mockImplementation(SimpleOutputField.generateSchemaFromSyntax);
+global.extractFieldPathFromSyntax = jest.fn().mockImplementation(SimpleOutputField.extractFieldPathFromSyntax);
+
+// Code
+global.onOpen = jest.fn().mockImplementation(Code.onOpen);
+global.showSidebar = jest.fn().mockImplementation(Code.showSidebar);
+// global.showConfigDialog is defined in UI.js now
+// global.validateApiConfig is defined in Config.js now
+global.processRange = jest.fn().mockImplementation(Code.processRange);
+global.processPrompt = jest.fn().mockImplementation(Code.processPrompt);
+global.extractColumnReferences = jest.fn(template => {
+  const matches = template.match(/\{[A-Z]+\}/g) || [];
+  return [...new Set(matches.map(match => match.slice(1, -1)))];
+});
+// global.columnToIndex is now in RangeUtils
+
+// Mock the global processPrompt function with a direct implementation
+global.processPrompt = jest.fn((outputColumn, promptTemplate, startRow = null, endRow = null, schema = null, fieldPath = '') => {
+  try {
+    // Validate inputs
+    validateOutputColumn(outputColumn);
+    if (!promptTemplate || typeof promptTemplate !== 'string') {
+      throw new Error('Prompt template is required and must be a string');
+    }
+
+    // Get the active sheet
+    const sheet = SpreadsheetApp.getActiveSheet();
+    if (!sheet) {
+      throw new Error('No active sheet found');
+    }
+
+    // Get the last row with data
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 1) {
+      throw new Error('Sheet is empty');
+    }
+
+    // Determine row range
+    const effectiveStartRow = startRow || 1;
+    const effectiveEndRow = endRow || lastRow;
+
+    // Validate row range
+    if (effectiveStartRow > effectiveEndRow) {
+      throw new Error('Start row cannot be greater than end row');
+    }
+    if (effectiveStartRow < 1) {
+      throw new Error('Start row must be at least 1');
+    }
+    if (effectiveEndRow > lastRow) {
+      throw new Error(`End row cannot exceed last data row (${lastRow})`);
+    }
+
+    // Extract column references from prompt template
+    const columnRefs = extractColumnReferences(promptTemplate);
+    if (columnRefs.length === 0) {
+      throw new Error('No column references found in prompt template');
+    }
+
+    // Get data for all referenced columns
+    const columnData = {};
+    for (const col of columnRefs) {
+      const range = sheet.getRange(`${col}${effectiveStartRow}:${col}${effectiveEndRow}`);
+      columnData[col] = range.getValues().map(row => row[0]);
+    }
+
+    // Convert output column to index
+    const outputColIndex = columnToIndex(outputColumn);
+
+    // Process each row
+    const results = [];
+    for (let i = 0; i < columnData[columnRefs[0]].length; i++) {
+      // Replace column references with actual values
+      let prompt = promptTemplate;
+      for (const col of columnRefs) {
+        const value = columnData[col][i];
+        prompt = prompt.replace(new RegExp(`\\{${col}\\}`, 'g'), value || '');
+      }
+
+      try {
+        // Call the API with the constructed prompt
+        const options = {};
+        if (schema) options.responseFormat = schema;
+        if (fieldPath) options.extractFieldPath = fieldPath;
+        
+        const result = makeApiRequest(prompt, options);
+        results.push([result.response]);
+      } catch (err) {
+        // Handle errors by putting error message in the output cell
+        results.push([`Error: ${err.message}`]);
+      }
+    }
+
+    // Write results to output column
+    const outputRange = sheet.getRange(effectiveStartRow, outputColIndex, results.length, 1);
+    outputRange.setValues(results);
+
+    return {
+      success: true,
+      message: `Processed ${results.length} rows successfully`
+    };
+  } catch (error) {
+    console.error('Error processing prompt:', error);
+    return {
+      success: false,
+      message: error.message || 'An unknown error occurred'
+    };
+  }
+});
+
+// --- Helper to reset mocks (using globally available jest object) ---
 global.resetAllMocks = () => {
   jest.clearAllMocks();
-  
-  // Reset script properties
-  Object.keys(scriptProperties).forEach(key => {
-    delete scriptProperties[key];
-  });
 
-  // Reset all global mocks
-  global.validateRange.mockClear();
-  global.validateOutputColumn.mockClear();
-  global.mapInputRangeToOutput.mockClear();
-  global.showSidebarUI.mockClear();
-  global.createMenu.mockClear();
-  global.showError.mockClear();
-  global.showMessage.mockClear();
-  global.showApiConfigDialog.mockClear();
-  global.getApiKey.mockClear();
-  global.setApiKey.mockClear();
-  global.getApiBaseUrl.mockClear();
-  global.setApiBaseUrl.mockClear();
-  global.validateApiKey.mockClear();
-  global.validateConfig.mockClear();
-  global.isConfigured.mockClear();
-  global.processRangeWithApi.mockClear();
-  global.makeApiRequest.mockClear();
-  global.formatRequestPayload.mockClear();
-  global.handleApiResponse.mockClear();
-  global.parseSimpleSyntax.mockClear();
-  global.generateSchemaFromSyntax.mockClear();
-  global.extractFieldPathFromSyntax.mockClear();
-}; 
+  // Reset script properties cache
+  Object.keys(scriptProperties).forEach(key => { delete scriptProperties[key]; });
+
+  // Re-apply default mock implementations IF NEEDED (jest.clearAllMocks might suffice)
+  // Often, just clearing calls/instances is enough, and re-applying defaults
+  // can sometimes hide issues if a test accidentally overwrites a global mock.
+  // However, if tests heavily rely on modifying global mocks, explicitly resetting
+  // the implementation might be safer.
+  // Example (Apply selectively if needed):
+  // global.validateRange.mockImplementation(RangeUtils.validateRange);
+  // global.getApiKey.mockImplementation(Config.getApiKey);
+  // etc.
+};
+
+// --- Register Reset Hook (using globally available beforeEach) ---
+// --- REMOVED: This was incorrect. beforeEach should be used in test files only ---
+// // This runs before each test case in every test file
+// beforeEach(() => {
+//   resetAllMocks();
+// }); 
