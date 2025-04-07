@@ -10,12 +10,9 @@ from pydantic import BaseModel
 
 from ..llm import process_with_llm
 from ..logging.setup import (
-    log_batch_completion,
     log_batch_item_error,
-    log_batch_process_completion,
-    log_batch_progress,
-    log_batch_start,
-    log_first_result,
+    update_batch_processing_span,
+    update_batch_span_attributes,
 )
 from ..models import (
     MultiplePromptsRequest,
@@ -102,11 +99,6 @@ async def process_prompt_batch(
     batch_size = len(batch)
     batch_start = time.time()
 
-    # Log batch progress
-    log_batch_progress(
-        batch_number, total_batches, batch_size, completed, total_prompts
-    )
-
     # PHASE 1: Prepare all requests (sequential)
     prepared_requests = []
     for i, prompt_request in enumerate(batch):
@@ -129,7 +121,7 @@ async def process_prompt_batch(
             llm_tasks.append(None)
             continue
 
-        # Create task for LLM processing (no rate limit semaphore needed)
+        # Create task for LLM processing
         task = process_with_llm(prompt, response_model=response_model)
         llm_tasks.append(task)
 
@@ -184,7 +176,6 @@ async def process_prompt_batch(
                 # Record first result time if it's first completion in entire process
                 if new_first_result_time is None and completed + batch_completed == 1:
                     new_first_result_time = time.time()
-                    log_first_result(new_first_result_time, batch_start_time)
 
         except ValueError as e:
             # Handle validation errors
@@ -202,21 +193,17 @@ async def process_prompt_batch(
             batch_responses.append(PromptResponse(status="error", error=str(e)))
             batch_failed += 1
 
-    # Calculate batch duration and log completion
+    # Calculate batch duration and update span with performance metrics
     batch_duration = time.time() - batch_start
-    log_batch_completion(
+    update_batch_span_attributes(
         batch_number,
-        total_batches,
+        batch_size,
         batch_completed,
         batch_failed,
-        completed + batch_completed,
-        failed + batch_failed,
-        total_prompts,
         batch_duration,
-        batch_size,
     )
 
-    # Log performance metrics
+    # Log performance metrics to standard logger for debugging
     avg_time_per_request = batch_duration / batch_size if batch_size > 0 else 0
     logger.info(
         f"Batch {batch_number} performance: total={batch_duration:.2f}s, "
@@ -246,10 +233,11 @@ async def process_multiple_prompts(
         "batch_processing",
         attributes={
             "total_prompts": total_prompts,
+            "batch_size": batch_size,
         },
     ):
-        # Log batch start and initialize counters
-        batch_start_time = log_batch_start(total_prompts)
+        # Initialize counters and timing
+        batch_start_time = time.time()
         all_responses = []
         completed = 0
         failed = 0
@@ -266,8 +254,9 @@ async def process_multiple_prompts(
                 f"batch_{batch_number}",
                 attributes={
                     "batch_number": batch_number,
+                    "total_batches": total_batches,
                     "batch_size": len(batch),
-                    "batch_start_index": i,
+                    "offset": i,
                 },
             ):
                 # Process this batch
@@ -296,9 +285,9 @@ async def process_multiple_prompts(
                 if first_result_time is None and new_first_result_time is not None:
                     first_result_time = new_first_result_time
 
-        # Calculate total duration and log completion
+        # Calculate total duration and update span with summary metrics
         total_duration = time.time() - batch_start_time
-        log_batch_process_completion(
+        update_batch_processing_span(
             total_prompts,
             completed,
             failed,
