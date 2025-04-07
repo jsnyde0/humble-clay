@@ -102,7 +102,7 @@ def test_batch_endpoint_with_apps_script_schema(
 ) -> None:
     """Test the batch endpoint with the Apps Script schema format."""
     # Mock the LLM to return structured data with age field
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     # Use side_effect to return different values for different calls
     mock_llm.side_effect = [
         {"age": 35},  # First call
@@ -218,7 +218,7 @@ def test_batch_endpoint_schema_validation_correct_parameters(
     process_with_llm.
     """
     # Mock process_with_llm to track calls and parameters
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     # Return a structured response
     mock_llm.return_value = {"age": 35}
 
@@ -257,7 +257,7 @@ def test_batch_endpoint_returns_structured_data(
     Test that the batch endpoint returns structured data when a schema is provided.
     """
     # Mock the LLM to return a structured response
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     mock_llm.return_value = {"age": 35}
 
     # Create a batch request with a schema
@@ -296,7 +296,7 @@ def test_batch_endpoint_field_extraction(
     Test that the batch endpoint correctly extracts fields from structured responses.
     """
     # Mock the LLM to return a structured response
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     mock_llm.return_value = {"age": 35}
 
     # Create a batch request with a schema and field path
@@ -335,7 +335,7 @@ def test_batch_endpoint_multiple_mixed_requests(
 ) -> None:
     """Test the batch endpoint with mixed schema and non-schema requests."""
     # Mock the LLM implementation to handle different calls
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
 
     # Configure the mock to return different values based on input
     # First call - with schema - returns structured data

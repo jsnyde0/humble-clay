@@ -23,7 +23,7 @@ def test_multiple_prompts_endpoint_processes_requests(
     client: TestClient, mocker: Any, auth_headers: Dict[str, str]
 ) -> None:
     """Test successful processing of multiple prompts."""
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     mock_llm.side_effect = ["Response 1", "Response 2"]
 
     response = client.post(
@@ -45,7 +45,7 @@ def test_multiple_prompts_endpoint_handles_partial_failure(
     client: TestClient, mocker: Any, auth_headers: Dict[str, str]
 ) -> None:
     """Test handling of partial failures in multiple prompts."""
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     mock_llm.side_effect = ["Success", Exception("Failed")]
 
     response = client.post(
@@ -65,7 +65,7 @@ def test_multiple_prompts_maintains_order(
     client: TestClient, mocker: Any, auth_headers: Dict[str, str]
 ) -> None:
     """Test that responses maintain the same order as input prompts."""
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     mock_llm.side_effect = ["First response", "Second response", "Third response"]
 
     response = client.post(
@@ -119,7 +119,7 @@ async def test_batch_processing_order(
     """Test that batch processing maintains prompt order."""
     prompts = [{"prompt": f"Prompt {i}"} for i in range(15)]
     mock_responses = [f"Response {i}" for i in range(15)]
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     mock_llm.side_effect = mock_responses
 
     response = client.post(
@@ -147,7 +147,7 @@ async def test_batch_error_handling(
             raise Exception("Test error")
         return f"Success for {prompt}"
 
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     mock_llm.side_effect = mock_response
 
     response = client.post(
@@ -201,7 +201,7 @@ def test_multiple_prompts_accepts_optional_fields(
 ) -> None:
     """Test that multiple prompts endpoint accepts optional fields per prompt."""
     # Setup mock with different responses for different calls
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
 
     # Define a dynamic side effect function to handle both structured and
     # unstructured outputs
@@ -242,7 +242,7 @@ def test_multiple_prompts_works_without_optional_fields(
     client: TestClient, mocker: Any, auth_headers: Dict[str, str]
 ) -> None:
     """Test that multiple prompts endpoint works without optional fields."""
-    mock_llm = mocker.patch("src.api.main.process_with_llm")
+    mock_llm = mocker.patch("src.api.batch.processor.process_with_llm")
     mock_llm.side_effect = ["Resp A", "Resp B"]
 
     payload = {"prompts": [{"prompt": "Prompt A"}, {"prompt": "Prompt B"}]}
