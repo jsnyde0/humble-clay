@@ -673,8 +673,8 @@ def test_enum_schema_extraction_integration(
                 return response_model(status="unknown")
         return "Mock response when no model is provided"
 
-    # Apply the mock
-    mocker.patch("src.api.llm.process_with_llm", side_effect=mock_process_with_llm)
+    # Apply the mock to the correct module where the function is called
+    mocker.patch("src.api.main.process_with_llm", side_effect=mock_process_with_llm)
 
     # Create a request with enum schema
     request = PromptRequest(
