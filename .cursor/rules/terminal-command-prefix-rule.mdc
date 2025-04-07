@@ -56,6 +56,17 @@ actions:
       
       **Reason:** This ensures all relevant files are properly tracked and committed together, preventing fragmented commits and ensuring the repository remains in a consistent state.
       
+      # 4. Test before commit
+      
+      CRITICAL: Before EVERY commit of code changes, I MUST:
+      
+      - Run `uv run pytest` in the project root directory
+      - Ensure ALL tests pass successfully
+      - If tests fail, fix the issues before committing
+      - NEVER commit code that fails tests
+      
+      **Reason:** This prevents broken code from being committed to the repository and maintains code quality. Committing untested code risks introducing regressions and bugs into the codebase.
+      
       I will now modify the proposed command to include these requirements.
 
 metadata:

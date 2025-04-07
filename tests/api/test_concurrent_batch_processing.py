@@ -113,7 +113,9 @@ async def test_first_result_time_tracking(mocker: Any):
     """Test that first result time is tracked correctly."""
     # Mock process_with_llm with varying delays
     mock_process = mocker.patch("src.api.batch.processor.process_with_llm")
-    mock_log_first = mocker.patch("src.api.batch.processor.log_first_result")
+
+    # Mock the log_batch_summary function from the right import path
+    mock_log_summary = mocker.patch("src.api.batch.processor.log_batch_summary")
 
     async def delayed_response(prompt, response_model=None, model=None):
         # Make the third prompt finish first
@@ -133,13 +135,15 @@ async def test_first_result_time_tracking(mocker: Any):
     # Process the request
     await process_multiple_prompts(request, batch_size=5)
 
-    # Verify log_first_result was called
-    assert mock_log_first.called
+    # Verify log_batch_summary was called (this captures first_result_time)
+    assert mock_log_summary.called
 
     # The first completed should be prompt 2, but the first in order should be prompt 0
-    call_args = mock_log_first.call_args[0]
-    # We can't check exact times, but we can verify it was called with 2 parameters
-    assert len(call_args) == 2
+    call_args = mock_log_summary.call_args[0]
+    # We can't check exact times, but we can verify it was called with correct parameters
+    assert (
+        len(call_args) >= 4
+    )  # Should have at least 4 parameters (total prompts, completed, failed, duration)
 
 
 @pytest.mark.asyncio

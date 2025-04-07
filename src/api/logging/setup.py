@@ -53,7 +53,7 @@ def log_batch_metrics(
     batch_duration: float,
 ) -> None:
     """
-    Log metrics for a completed batch to the current span.
+    Log metrics for a completed batch.
 
     Args:
         batch_number: The current batch number
@@ -64,18 +64,20 @@ def log_batch_metrics(
     """
     # Calculate average processing time per item
     avg_time = batch_duration / batch_size if batch_size > 0 else 0
+    success_rate = (
+        f"{batch_completed / batch_size * 100:.1f}%" if batch_size > 0 else "0%"
+    )
 
-    # Update the current span with these attributes
-    logfire.update_current_span(
-        attributes={
-            "completed": batch_completed,
-            "failed": batch_failed,
-            "success_rate": f"{batch_completed / batch_size * 100:.1f}%"
-            if batch_size > 0
-            else "0%",
-            "duration_seconds": round(batch_duration, 2),
-            "avg_time_per_item": round(avg_time, 3),
-        }
+    # Log batch metrics as an info event
+    logfire.info(
+        "Batch processing metrics",
+        batch_number=batch_number,
+        batch_size=batch_size,
+        completed=batch_completed,
+        failed=batch_failed,
+        success_rate=success_rate,
+        duration_seconds=round(batch_duration, 2),
+        avg_time_per_item=round(avg_time, 3),
     )
 
 
@@ -88,7 +90,7 @@ def log_batch_summary(
     batch_start_time: Optional[float] = None,
 ) -> None:
     """
-    Log summary metrics for the entire batch processing to the current span.
+    Log summary metrics for the entire batch processing.
 
     Args:
         total_prompts: The total number of prompts processed
@@ -103,21 +105,24 @@ def log_batch_summary(
     if first_result_time and batch_start_time:
         time_to_first_result = round(first_result_time - batch_start_time, 2)
 
-    # Update the batch processing span
-    logfire.update_current_span(
-        attributes={
-            "total_prompts": total_prompts,
-            "completed": completed,
-            "failed": failed,
-            "success_rate": f"{completed / total_prompts * 100:.1f}%"
-            if total_prompts > 0
-            else "0%",
-            "total_duration_seconds": round(total_duration, 2),
-            "time_to_first_result": time_to_first_result,
-            "avg_time_per_item": round(total_duration / total_prompts, 3)
-            if total_prompts > 0
-            else 0,
-        }
+    # Calculate success rate
+    success_rate = (
+        f"{completed / total_prompts * 100:.1f}%" if total_prompts > 0 else "0%"
+    )
+
+    # Calculate average time per item
+    avg_time = round(total_duration / total_prompts, 3) if total_prompts > 0 else 0
+
+    # Log batch summary as an info event
+    logfire.info(
+        "Batch processing summary",
+        total_prompts=total_prompts,
+        completed=completed,
+        failed=failed,
+        success_rate=success_rate,
+        total_duration_seconds=round(total_duration, 2),
+        time_to_first_result=time_to_first_result,
+        avg_time_per_item=avg_time,
     )
 
 
