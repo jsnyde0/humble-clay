@@ -45,7 +45,7 @@ async def test_process_with_llm_no_schema(mocker):
     """Test process_with_llm returns a string using the OpenAI client."""
     # Mock the OpenAI client call
     mock_openai_create = mocker.patch(
-        "src.api.llm.client.chat.completions.create", new_callable=AsyncMock
+        "src.api.llm.processor.client.chat.completions.create", new_callable=AsyncMock
     )
 
     # Configure mock to return a simulated OpenAI response object with string content
@@ -71,7 +71,7 @@ async def test_process_with_llm_with_instructor(mocker):
     # Mock the actual method called by the patched client
     # The path depends on where 'client' is defined in src.api.llm
     mock_openai_create = mocker.patch(
-        "src.api.llm.client.chat.completions.create", new_callable=AsyncMock
+        "src.api.llm.processor.client.chat.completions.create", new_callable=AsyncMock
     )
 
     # Expected data
@@ -101,7 +101,7 @@ async def test_process_with_llm_handles_api_error(mocker):
     """Test process_with_llm raises exception on API error."""
     # Mock the client call to raise an OpenAI APIError
     mock_openai_create = mocker.patch(
-        "src.api.llm.client.chat.completions.create", new_callable=AsyncMock
+        "src.api.llm.processor.client.chat.completions.create", new_callable=AsyncMock
     )
 
     # Correctly instantiate APIError (may need httpx request mock if constructor
