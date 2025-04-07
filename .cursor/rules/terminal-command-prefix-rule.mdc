@@ -42,6 +42,19 @@ actions:
       - Use `uv pip install` instead of `pip install`
       
       **Reason:** UV provides better performance, dependency resolution, and consistent environment management.
+
+      # 3. Git command best practices
+      
+      When using Git commands, I MUST follow these practices:
+      
+      - ALWAYS run `git status` before attempting to add or commit files to see the current state
+      - Be thorough when adding files - don't miss related files or tests
+      - For commits that modify multiple areas, use `git add <specific files>` rather than `git add .`
+      - When working on related changes across multiple files, ensure all relevant files are added to the same commit
+      - After running `git add`, run `git status` again to verify the correct files are staged
+      - Use conventional commit messages with appropriate scope
+      
+      **Reason:** This ensures all relevant files are properly tracked and committed together, preventing fragmented commits and ensuring the repository remains in a consistent state.
       
       I will now modify the proposed command to include these requirements.
 
