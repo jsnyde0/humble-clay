@@ -296,6 +296,8 @@ function validateApiKey(apiKey) {
 
 /**
  * Processes a batch of values in parallel
+ * This function should be used for batching multiple prompts into a single API request
+ * for better performance and to avoid excessive API calls
  * @param {string[]} batch - Array of values to process
  * @param {Object} options - Processing options
  * @returns {Promise<Array>} Processed values

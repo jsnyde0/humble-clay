@@ -237,52 +237,58 @@ function processPrompt(outputColumn, promptTemplate, startRow = null, endRow = n
       columnData[col] = range.getValues().map(row => row[0]);
     }
 
-    // Process each row
-    const results = [];
-    for (let i = 0; i < columnData[columnRefs[0]].length; i++) {
+    // Create options object for API processing
+    const options = {};
+    if (schema) {
+      options.responseFormat = schema;
+    }
+    if (fieldPath) {
+      options.extractFieldPath = fieldPath;
+    }
+
+    // Prepare all prompts for batch processing
+    const numRows = columnData[columnRefs[0]].length;
+    const prompts = [];
+    
+    // Generate all prompts first
+    for (let i = 0; i < numRows; i++) {
       // Replace column references with actual values
       let prompt = promptTemplate;
       for (const col of columnRefs) {
         const value = columnData[col][i];
         prompt = prompt.replace(new RegExp(`\\{${col}\\}`, 'g'), value || '');
       }
-
-      // Create options object for API processing
-      const options = {};
-      if (schema) {
-        options.responseFormat = schema;
-      }
-      if (fieldPath) {
-        options.extractFieldPath = fieldPath;
-      }
-
-      // Log the actual prompt being sent
-      Logger.log(`[processPrompt] Processing row ${i + effectiveStartRow} with prompt: ${prompt}`);
-      Logger.log(`[processPrompt] API options: ${JSON.stringify(options)}`);
-
-      // Process the prompt using the API
-      try {
-        const response = makeApiRequest(prompt, {
-          ...options
-        });
+      
+      Logger.log(`[processPrompt] Prepared prompt for row ${i + effectiveStartRow}: ${prompt}`);
+      prompts.push(prompt);
+    }
+    
+    // Log the batch size
+    Logger.log(`[processPrompt] Prepared batch of ${prompts.length} prompts`);
+    
+    // Process all prompts in a single batch call
+    let results = [];
+    try {
+      // Process in batches of maxBatchSize if needed
+      const maxBatchSize = 10; // Default batch size
+      
+      for (let i = 0; i < prompts.length; i += maxBatchSize) {
+        const batchPrompts = prompts.slice(i, i + maxBatchSize);
+        Logger.log(`[processPrompt] Processing batch ${Math.floor(i/maxBatchSize) + 1} of ${Math.ceil(prompts.length/maxBatchSize)}`);
         
-        Logger.log(`[processPrompt] API response for row ${i + effectiveStartRow}: ${JSON.stringify(response)}`);
+        // Call processBatch with this batch
+        const batchResults = processBatch(batchPrompts, options);
         
-        if (!response) {
-          throw new Error('Empty response from API');
+        // Add to overall results
+        for (let j = 0; j < batchResults.length; j++) {
+          const result = batchResults[j];
+          results.push([result]);
         }
-        
-        if (response.error) {
-          throw new Error(`API error: ${response.error}`);
-        }
-
-        // Extract the response text from the API response
-        const output = response.response || '';
-        results.push([output]);
-      } catch (error) {
-        Logger.log(`[processPrompt] Error processing row ${i + effectiveStartRow}: ${error.message}`);
-        results.push(['Error: ' + error.message]); // Show error in the cell instead of empty string
       }
+    } catch (error) {
+      Logger.log(`[processPrompt] Batch processing error: ${error.message}`);
+      // If batch processing fails, create error messages for all rows
+      results = prompts.map(() => [`Error: ${error.message}`]);
     }
 
     // Write results to output column
