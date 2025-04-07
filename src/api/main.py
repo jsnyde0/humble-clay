@@ -8,6 +8,16 @@ from fastapi import Depends, FastAPI
 
 from .auth import verify_api_key
 from .llm import process_with_llm
+from .logging.setup import (
+    configure_logfire,
+    log_batch_completion,
+    log_batch_item_error,
+    log_batch_process_completion,
+    log_batch_progress,
+    log_batch_start,
+    log_first_result,
+    setup_api_logging,
+)
 from .models import (
     MultiplePromptsRequest,
     MultiplePromptsResponse,
@@ -17,13 +27,12 @@ from .models import (
 from .response.handlers import prepare_prompt_response
 from .schema.dynamic import create_dynamic_model_from_schema
 
-# Configure Logfire
-logfire.configure(
+# Configure Logfire and setup logging
+configure_logfire(
     service_name="humble-clay-api",
     service_version="0.1.0",
-    environment="development",  # Change to "production" in production environment
+    environment="development",
 )
-logfire.info("Logfire configured in main.py")
 
 app = FastAPI(
     title="Humble Clay API",
@@ -31,8 +40,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Apply Logfire instrumentation to FastAPI
-logfire.instrument_fastapi(app)
+# Apply Logfire instrumentation to FastAPI and setup logging
+setup_api_logging(app)
 
 # Batch processing configuration
 # Using a batch size of 100 optimized for Gemini Flash Lite:
@@ -42,8 +51,7 @@ logfire.instrument_fastapi(app)
 # 4. Significantly reduces processing time for large datasets
 BATCH_SIZE = 100
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logger for this module
 logger = logging.getLogger(__name__)
 
 
@@ -144,11 +152,7 @@ async def process_prompts(
         },
     ):
         # Log batch start
-        batch_start_time = time.time()
-        logfire.info(
-            "Starting batch processing",
-            total_prompts=total_prompts,
-        )
+        batch_start_time = log_batch_start(total_prompts)
 
         all_responses = []
         completed = 0
@@ -171,14 +175,8 @@ async def process_prompts(
                 },
             ):
                 batch_start = time.time()
-                logfire.info(
-                    f"Processing batch {batch_number}/{total_batches}",
-                    batch_number=batch_number,
-                    total_batches=total_batches,
-                    batch_size=batch_size,
-                    progress_percentage=round((completed / total_prompts) * 100, 2)
-                    if total_prompts > 0
-                    else 0,
+                log_batch_progress(
+                    batch_number, total_batches, batch_size, completed, total_prompts
                 )
 
                 # Process each prompt individually to handle schema correctly
@@ -244,22 +242,17 @@ async def process_prompts(
                                 and completed + batch_completed == 1
                             ):
                                 first_result_time = time.time()
-                                time_to_first = first_result_time - batch_start_time
-                                logfire.info(
-                                    "First result completed",
-                                    time_to_first_result=round(time_to_first, 2),
-                                )
+                                log_first_result(first_result_time, batch_start_time)
 
                     except ValueError as e:
                         # Handle validation errors
                         item_duration = time.time() - item_start
-                        logfire.error(
-                            "Batch item validation error",
-                            error=str(e),
-                            prompt=prompt_request.prompt[:100],  # First 100 chars
-                            item_duration=round(item_duration, 2),
+                        log_batch_item_error(
+                            e,
+                            prompt_request.prompt,
+                            item_duration,
+                            error_type="validation",
                         )
-                        logger.error(f"Batch item validation error: {str(e)}")
                         batch_responses.append(
                             PromptResponse(status="error", error=str(e))
                         )
@@ -268,13 +261,7 @@ async def process_prompts(
                     except Exception as e:
                         # Handle other errors
                         item_duration = time.time() - item_start
-                        logfire.error(
-                            "Batch item processing error",
-                            error=str(e),
-                            prompt=prompt_request.prompt[:100],  # First 100 chars
-                            item_duration=round(item_duration, 2),
-                        )
-                        logger.error(f"Batch item processing error: {str(e)}")
+                        log_batch_item_error(e, prompt_request.prompt, item_duration)
                         batch_responses.append(
                             PromptResponse(status="error", error=str(e))
                         )
@@ -289,38 +276,29 @@ async def process_prompts(
                 batch_duration = time.time() - batch_start
 
                 # Log sub-batch completion
-                logfire.info(
-                    f"Completed batch {batch_number}/{total_batches}",
-                    batch_number=batch_number,
-                    batch_completed=batch_completed,
-                    batch_failed=batch_failed,
-                    total_completed=completed,
-                    total_failed=failed,
-                    progress_percentage=round((completed / total_prompts) * 100, 2)
-                    if total_prompts > 0
-                    else 0,
-                    batch_duration=round(batch_duration, 2),
-                    avg_item_time=round(batch_duration / batch_size, 2)
-                    if batch_size > 0
-                    else 0,
+                log_batch_completion(
+                    batch_number,
+                    total_batches,
+                    batch_completed,
+                    batch_failed,
+                    completed,
+                    failed,
+                    total_prompts,
+                    batch_duration,
+                    batch_size,
                 )
 
         # Calculate total duration
         total_duration = time.time() - batch_start_time
 
         # Log batch completion with timing metrics
-        logfire.info(
-            "Completed batch processing",
-            total_prompts=total_prompts,
-            completed=completed,
-            failed=failed,
-            total_duration=round(total_duration, 2),
-            time_to_first_result=round(first_result_time - batch_start_time, 2)
-            if first_result_time
-            else None,
-            average_time_per_item=round(total_duration / total_prompts, 2)
-            if total_prompts > 0
-            else 0,
+        log_batch_process_completion(
+            total_prompts,
+            completed,
+            failed,
+            total_duration,
+            first_result_time,
+            batch_start_time,
         )
 
         return MultiplePromptsResponse(responses=all_responses)
