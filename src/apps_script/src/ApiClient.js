@@ -8,7 +8,7 @@
 const API_CONFIG = {
   maxRetries: 3,
   initialRetryDelay: 1000, // 1 second
-  maxBatchSize: 10, // Maximum items to process in parallel
+  maxBatchSize: 100, // Increased from 10 to 100 to support larger batches
   endpoints: {
     batch: '/api/v1/prompts'  // We only use the batch endpoint
   }
@@ -455,4 +455,4 @@ if (typeof module !== 'undefined' && module.exports) {
     processBatch,
     processRangeWithApi
   };
-} 
+}

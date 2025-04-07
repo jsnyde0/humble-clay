@@ -269,22 +269,16 @@ function processPrompt(outputColumn, promptTemplate, startRow = null, endRow = n
     // Process all prompts in a single batch call
     let results = [];
     try {
-      // Process in batches of maxBatchSize if needed
-      const maxBatchSize = 10; // Default batch size
+      // MODIFIED: Process all prompts in a single call to the API
+      // No more batching loop - send all prompts at once
+      Logger.log(`[processPrompt] Processing all ${prompts.length} prompts in a single API call`);
       
-      for (let i = 0; i < prompts.length; i += maxBatchSize) {
-        const batchPrompts = prompts.slice(i, i + maxBatchSize);
-        Logger.log(`[processPrompt] Processing batch ${Math.floor(i/maxBatchSize) + 1} of ${Math.ceil(prompts.length/maxBatchSize)}`);
-        
-        // Call processBatch with this batch
-        const batchResults = processBatch(batchPrompts, options);
-        
-        // Add to overall results
-        for (let j = 0; j < batchResults.length; j++) {
-          const result = batchResults[j];
-          results.push([result]);
-        }
-      }
+      // Call processBatch with all prompts
+      const batchResults = processBatch(prompts, options);
+      
+      // Format results for output
+      results = batchResults.map(result => [result]);
+      
     } catch (error) {
       Logger.log(`[processPrompt] Batch processing error: ${error.message}`);
       // If batch processing fails, create error messages for all rows
