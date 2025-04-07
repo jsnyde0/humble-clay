@@ -1,10 +1,12 @@
 """Batch processing logic for handling multiple prompts."""
 
+import asyncio
 import logging
 import time
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Type
 
 import logfire
+from pydantic import BaseModel
 
 from ..llm import process_with_llm
 from ..logging.setup import (
@@ -29,6 +31,42 @@ logger = logging.getLogger(__name__)
 
 # Default batch size
 DEFAULT_BATCH_SIZE = 100
+
+
+async def prepare_prompt_request(
+    prompt_request: PromptRequest,
+) -> Tuple[str, Optional[Type[BaseModel]], bool]:
+    """
+    Prepare a prompt request for processing.
+
+    Args:
+        prompt_request: The prompt request to prepare
+
+    Returns:
+        Tuple containing:
+        - The prompt text
+        - Response model (if schema provided)
+        - Boolean indicating if the request has a schema
+    """
+    response_model = None
+    has_schema = False
+
+    # Check if we need a structured schema
+    if (
+        prompt_request.response_format
+        and prompt_request.response_format.get("type") == "json_schema"
+    ):
+        has_schema = True
+        json_schema = prompt_request.response_format.get("json_schema", {})
+        if json_schema and "schema" in json_schema:
+            # Create a dynamic Pydantic model from provided schema
+            schema_name = json_schema.get("name", "DynamicSchema")
+            schema_obj = json_schema["schema"]
+
+            # Create a model with proper enum handling
+            response_model = create_dynamic_model_from_schema(schema_name, schema_obj)
+
+    return prompt_request.prompt, response_model, has_schema
 
 
 async def process_prompt_batch(
@@ -69,41 +107,63 @@ async def process_prompt_batch(
         batch_number, total_batches, batch_size, completed, total_prompts
     )
 
-    # Process each prompt in the batch
+    # PHASE 1: Prepare all requests (sequential)
+    prepared_requests = []
+    for i, prompt_request in enumerate(batch):
+        try:
+            prompt, response_model, has_schema = await prepare_prompt_request(
+                prompt_request
+            )
+            prepared_requests.append(
+                (i, prompt_request, prompt, response_model, has_schema)
+            )
+        except Exception as e:
+            # Handle preparation errors
+            logger.error(f"Error preparing request: {e}")
+            prepared_requests.append((i, prompt_request, None, None, False))
+
+    # PHASE 2: Execute LLM calls (concurrent)
+    llm_tasks = []
+    for _, _, prompt, response_model, _ in prepared_requests:
+        if prompt is None:  # Skip failed preparations
+            llm_tasks.append(None)
+            continue
+
+        # Create task for LLM processing (no rate limit semaphore needed)
+        task = process_with_llm(prompt, response_model=response_model)
+        llm_tasks.append(task)
+
+    # Wait for all LLM tasks to complete
+    llm_responses = await asyncio.gather(
+        *[task for task in llm_tasks if task is not None], return_exceptions=True
+    )
+
+    # Reconstruct the response list with correct ordering
+    ordered_responses = [None] * len(prepared_requests)
+    response_idx = 0
+    for i, (req_idx, _, _, _, _) in enumerate(prepared_requests):
+        if llm_tasks[i] is not None:
+            ordered_responses[req_idx] = llm_responses[response_idx]
+            response_idx += 1
+
+    # PHASE 3: Process responses (sequential)
     batch_responses = []
     batch_completed = 0
     batch_failed = 0
+    new_first_result_time = first_result_time
 
-    # Process each prompt in the batch
-    for prompt_request in batch:
+    for i, (req_idx, prompt_request, _, _, has_schema) in enumerate(prepared_requests):
         item_start = time.time()
         try:
-            # Determine if we need a structured schema
-            response_model = None
-            has_schema = False
+            if llm_tasks[i] is None:
+                # Request preparation failed
+                raise ValueError("Failed to prepare request")
 
-            if (
-                prompt_request.response_format
-                and prompt_request.response_format.get("type") == "json_schema"
-            ):
-                has_schema = True
-                json_schema = prompt_request.response_format.get("json_schema", {})
-                if json_schema and "schema" in json_schema:
-                    # Create a dynamic Pydantic model from provided schema
-                    schema_name = json_schema.get("name", "DynamicSchema")
-                    schema_obj = json_schema["schema"]
+            response_data = ordered_responses[req_idx]
 
-                    # Create a model with proper enum handling
-                    response_model = create_dynamic_model_from_schema(
-                        schema_name, schema_obj
-                    )
-
-            # Process the prompt with or without a schema
-            with logfire.span("llm_processing"):
-                response_data = await process_with_llm(
-                    prompt_request.prompt,
-                    response_model=response_model if response_model else None,
-                )
+            # Check if the response is an exception
+            if isinstance(response_data, Exception):
+                raise response_data
 
             # Use the response handler to prepare the response
             response = prepare_prompt_response(
@@ -121,10 +181,10 @@ async def process_prompt_batch(
             else:
                 batch_completed += 1
 
-                # Record first result time if it's the first completion in entire process
-                if first_result_time is None and completed + batch_completed == 1:
-                    first_result_time = time.time()
-                    log_first_result(first_result_time, batch_start_time)
+                # Record first result time if it's first completion in entire process
+                if new_first_result_time is None and completed + batch_completed == 1:
+                    new_first_result_time = time.time()
+                    log_first_result(new_first_result_time, batch_start_time)
 
         except ValueError as e:
             # Handle validation errors
@@ -156,7 +216,14 @@ async def process_prompt_batch(
         batch_size,
     )
 
-    return batch_responses, batch_completed, batch_failed, first_result_time
+    # Log performance metrics
+    avg_time_per_request = batch_duration / batch_size if batch_size > 0 else 0
+    logger.info(
+        f"Batch {batch_number} performance: total={batch_duration:.2f}s, "
+        f"avg={avg_time_per_request:.2f}s/request, concurrent_requests={batch_size}"
+    )
+
+    return batch_responses, batch_completed, batch_failed, new_first_result_time
 
 
 async def process_multiple_prompts(
@@ -167,7 +234,7 @@ async def process_multiple_prompts(
 
     Args:
         request: The MultiplePromptsRequest containing prompts to process
-        batch_size: The maximum number of prompts to process in a batch
+        batch_size: The maximum number of prompts to process (concurrently) in a batch
 
     Returns:
         MultiplePromptsResponse with all processed responses

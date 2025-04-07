@@ -127,4 +127,4 @@ async def process_prompts(
     If extract_field_path is provided along with a schema, the specified
     field will be extracted from the structured responses.
     """
-    return await process_multiple_prompts(request)
+    return await process_multiple_prompts(request, batch_size=100)
