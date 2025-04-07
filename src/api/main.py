@@ -7,7 +7,6 @@ import logfire
 from fastapi import Depends, FastAPI
 
 from .auth import verify_api_key
-from .field_extraction import extract_field, validate_field_extraction_request
 from .llm import process_with_llm
 from .models import (
     MultiplePromptsRequest,
@@ -15,6 +14,7 @@ from .models import (
     PromptRequest,
     PromptResponse,
 )
+from .response.handlers import prepare_prompt_response
 from .schema.dynamic import create_dynamic_model_from_schema
 
 # Configure Logfire
@@ -103,35 +103,12 @@ async def process_prompt(
             request.prompt, response_model=response_model if response_model else None
         )
 
-        # Handle different response types (dict, Pydantic model, or string)
-        if hasattr(response_data, "model_dump"):
-            # It's a Pydantic model
-            response_dict = response_data.model_dump()
-        elif isinstance(response_data, dict):
-            # It's already a dict
-            response_dict = response_data
-        else:
-            # It's a string or other type
-            # For backward compatibility, return directly for string responses
-            # unless field extraction is requested
-            if not request.extract_field_path:
-                return PromptResponse(response=response_data)
-            else:
-                response_dict = {"result": response_data}
-
-        # Extract specific field if requested
-        if request.extract_field_path:
-            # Validate the extraction request
-            validate_field_extraction_request(
-                response_dict, request.extract_field_path, has_schema
-            )
-
-            # Extract the requested field
-            extracted_value = extract_field(response_dict, request.extract_field_path)
-            return PromptResponse(response=extracted_value)
-
-        # Return the full response if no extraction requested
-        return PromptResponse(response=response_dict)
+        # Use the response handler to format the response and handle field extraction
+        return prepare_prompt_response(
+            response_data,
+            extract_field_path=request.extract_field_path,
+            has_schema=has_schema,
+        )
 
     except ValueError as e:
         # Handle validation errors
@@ -245,82 +222,33 @@ async def process_prompts(
                                 else None,
                             )
 
-                        # Handle different response types (dict, Pydantic, or string)
-                        if hasattr(response_data, "model_dump"):
-                            # It's a Pydantic model
-                            response_dict = response_data.model_dump()
-                        elif isinstance(response_data, dict):
-                            # It's already a dict
-                            response_dict = response_data
+                        # Use the response handler to prepare the response
+                        response = prepare_prompt_response(
+                            response_data,
+                            extract_field_path=prompt_request.extract_field_path,
+                            has_schema=has_schema,
+                        )
+
+                        # Add the response to batch responses
+                        batch_responses.append(response)
+
+                        # Update completion status based on response
+                        if response.status == "error":
+                            batch_failed += 1
                         else:
-                            # It's a string or other type
-                            # For backward compatibility, return directly for
-                            # string responses unless field extraction is requested
-                            if not prompt_request.extract_field_path:
-                                batch_responses.append(
-                                    PromptResponse(response=response_data)
-                                )
-                                batch_completed += 1
-
-                                # Record first result time if it's the first completion
-                                if (
-                                    first_result_time is None
-                                    and completed + batch_completed == 1
-                                ):
-                                    first_result_time = time.time()
-                                    time_to_first = first_result_time - batch_start_time
-                                    logfire.info(
-                                        "First result completed",
-                                        time_to_first_result=round(time_to_first, 2),
-                                    )
-
-                                continue
-                            else:
-                                response_dict = {"result": response_data}
-
-                        # Extract specific field if requested
-                        if prompt_request.extract_field_path:
-                            try:
-                                # Validate the extraction request
-                                validate_field_extraction_request(
-                                    response_dict,
-                                    prompt_request.extract_field_path,
-                                    has_schema,
-                                )
-
-                                # Extract the requested field
-                                extracted_value = extract_field(
-                                    response_dict, prompt_request.extract_field_path
-                                )
-                                batch_responses.append(
-                                    PromptResponse(response=extracted_value)
-                                )
-                                batch_completed += 1
-                            except ValueError as e:
-                                # Handle field extraction errors
-                                logger.error(f"Field extraction error: {str(e)}")
-                                batch_responses.append(
-                                    PromptResponse(status="error", error=str(e))
-                                )
-                                batch_failed += 1
-                        else:
-                            # Return the full response if no extraction requested
-                            batch_responses.append(
-                                PromptResponse(response=response_dict)
-                            )
                             batch_completed += 1
 
-                        # Record first result time if this is the first completion
-                        if (
-                            first_result_time is None
-                            and completed + batch_completed == 1
-                        ):
-                            first_result_time = time.time()
-                            time_to_first = first_result_time - batch_start_time
-                            logfire.info(
-                                "First result completed",
-                                time_to_first_result=round(time_to_first, 2),
-                            )
+                            # Record first result time if it's the first completion
+                            if (
+                                first_result_time is None
+                                and completed + batch_completed == 1
+                            ):
+                                first_result_time = time.time()
+                                time_to_first = first_result_time - batch_start_time
+                                logfire.info(
+                                    "First result completed",
+                                    time_to_first_result=round(time_to_first, 2),
+                                )
 
                     except ValueError as e:
                         # Handle validation errors
