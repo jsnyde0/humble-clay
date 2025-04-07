@@ -310,10 +310,6 @@ function processBatch(batch, options = {}) {
     throw new Error('Batch cannot be empty');
   }
 
-  if (batch.length > API_CONFIG.maxBatchSize) {
-    throw new Error(`Batch size cannot exceed ${API_CONFIG.maxBatchSize} items`);
-  }
-
   // Get API key and base URL from script properties
   const apiKey = getApiKey();
   if (!apiKey) {
