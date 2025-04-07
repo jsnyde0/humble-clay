@@ -11,8 +11,8 @@ from pydantic import BaseModel
 from ..llm import process_with_llm
 from ..logging.setup import (
     log_batch_item_error,
-    update_batch_processing_span,
-    update_batch_span_attributes,
+    log_batch_metrics,
+    log_batch_summary,
 )
 from ..models import (
     MultiplePromptsRequest,
@@ -66,7 +66,7 @@ async def prepare_prompt_request(
     return prompt_request.prompt, response_model, has_schema
 
 
-async def process_prompt_batch(
+async def process_batch(
     batch: List[PromptRequest],
     batch_number: int,
     total_batches: int,
@@ -195,7 +195,7 @@ async def process_prompt_batch(
 
     # Calculate batch duration and update span with performance metrics
     batch_duration = time.time() - batch_start
-    update_batch_span_attributes(
+    log_batch_metrics(
         batch_number,
         batch_size,
         batch_completed,
@@ -265,7 +265,7 @@ async def process_multiple_prompts(
                     batch_completed,
                     batch_failed,
                     new_first_result_time,
-                ) = await process_prompt_batch(
+                ) = await process_batch(
                     batch,
                     batch_number,
                     total_batches,
@@ -287,7 +287,7 @@ async def process_multiple_prompts(
 
         # Calculate total duration and update span with summary metrics
         total_duration = time.time() - batch_start_time
-        update_batch_processing_span(
+        log_batch_summary(
             total_prompts,
             completed,
             failed,

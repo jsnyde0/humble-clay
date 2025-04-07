@@ -10,13 +10,13 @@ from fastapi import FastAPI
 logger = logging.getLogger(__name__)
 
 
-def configure_logfire(
+def initialize_logfire(
     service_name: str = "humble-clay-api",
     service_version: str = "0.1.0",
     environment: str = "development",
 ) -> None:
     """
-    Configure Logfire for the application.
+    Initialize and configure Logfire for the application.
 
     Args:
         service_name: The name of the service
@@ -31,7 +31,7 @@ def configure_logfire(
     logfire.info("Logfire configured")
 
 
-def setup_api_logging(app: FastAPI) -> None:
+def setup_fastapi_logging(app: FastAPI) -> None:
     """
     Set up logging for a FastAPI application.
 
@@ -45,7 +45,7 @@ def setup_api_logging(app: FastAPI) -> None:
     logging.basicConfig(level=logging.INFO)
 
 
-def update_batch_span_attributes(
+def log_batch_metrics(
     batch_number: int,
     batch_size: int,
     batch_completed: int,
@@ -53,7 +53,7 @@ def update_batch_span_attributes(
     batch_duration: float,
 ) -> None:
     """
-    Update the current batch span with performance attributes.
+    Log metrics for a completed batch to the current span.
 
     Args:
         batch_number: The current batch number
@@ -79,7 +79,7 @@ def update_batch_span_attributes(
     )
 
 
-def update_batch_processing_span(
+def log_batch_summary(
     total_prompts: int,
     completed: int,
     failed: int,
@@ -88,7 +88,7 @@ def update_batch_processing_span(
     batch_start_time: Optional[float] = None,
 ) -> None:
     """
-    Update the main batch processing span with summary attributes.
+    Log summary metrics for the entire batch processing to the current span.
 
     Args:
         total_prompts: The total number of prompts processed

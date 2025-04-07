@@ -10,9 +10,9 @@ from ..models import PromptResponse
 logger = logging.getLogger(__name__)
 
 
-def format_llm_response(response_data: Any) -> Union[Dict[str, Any], Any]:
+def format_response_data(response_data: Any) -> Union[Dict[str, Any], Any]:
     """
-    Format the LLM response data based on its type.
+    Format the LLM response data into a consistent structure based on its type.
 
     Args:
         response_data: The raw response from the LLM
@@ -32,7 +32,7 @@ def format_llm_response(response_data: Any) -> Union[Dict[str, Any], Any]:
         return response_data
 
 
-def extract_field_if_needed(
+def extract_requested_field(
     response_dict: Dict[str, Any], extract_field_path: Optional[str], has_schema: bool
 ) -> Union[Dict[str, Any], Any]:
     """
@@ -73,7 +73,7 @@ def prepare_prompt_response(
         PromptResponse with properly formatted data
     """
     # Format the response based on its type
-    formatted_response = format_llm_response(response_data)
+    formatted_response = format_response_data(response_data)
 
     # Handle string responses directly if no field extraction
     if not isinstance(formatted_response, dict) and not extract_field_path:
@@ -86,7 +86,7 @@ def prepare_prompt_response(
     # Extract specific field if requested
     if extract_field_path:
         try:
-            extracted_value = extract_field_if_needed(
+            extracted_value = extract_requested_field(
                 formatted_response, extract_field_path, has_schema
             )
             return PromptResponse(response=extracted_value)

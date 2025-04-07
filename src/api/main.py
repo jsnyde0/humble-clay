@@ -8,8 +8,8 @@ from .auth import verify_api_key
 from .batch.processor import process_multiple_prompts
 from .llm import process_with_llm
 from .logging.setup import (
-    configure_logfire,
-    setup_api_logging,
+    initialize_logfire,
+    setup_fastapi_logging,
 )
 from .models import (
     MultiplePromptsRequest,
@@ -21,7 +21,7 @@ from .response.handlers import prepare_prompt_response
 from .schema.dynamic import create_dynamic_model_from_schema
 
 # Configure Logfire and setup logging
-configure_logfire(
+initialize_logfire(
     service_name="humble-clay-api",
     service_version="0.1.0",
     environment="development",
@@ -34,15 +34,15 @@ app = FastAPI(
 )
 
 # Apply Logfire instrumentation to FastAPI and setup logging
-setup_api_logging(app)
+setup_fastapi_logging(app)
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
 
 
 @app.get("/")
-async def root():
-    """Root endpoint with basic information."""
+async def get_api_info():
+    """Root endpoint with basic information about the API."""
     return {
         "name": "Humble Clay",
         "description": "AI-powered Google Sheets add-on",
@@ -51,13 +51,13 @@ async def root():
 
 
 @app.get("/health")
-async def health():
+async def check_health():
     """Health check endpoint."""
     return {"status": "healthy", "version": "0.1.0"}
 
 
 @app.post("/api/v1/prompt", response_model=PromptResponse)
-async def process_prompt(
+async def process_single_prompt(
     request: PromptRequest,
     api_key: str = Depends(verify_api_key),
 ):
@@ -114,7 +114,7 @@ async def process_prompt(
 
 
 @app.post("/api/v1/prompts", response_model=MultiplePromptsResponse)
-async def process_prompts(
+async def process_multiple_prompts_endpoint(
     request: MultiplePromptsRequest,
     api_key: str = Depends(verify_api_key),
 ):
