@@ -1,0 +1,120 @@
+---
+description: 
+globs: *.py
+alwaysApply: false
+---
+---
+description: Guidelines for preferred Python design patterns and anti-patterns
+globs: "**/*.py"
+alwaysApply: true
+---
+# Python Design Patterns Guide
+
+Rule for promoting robust, testable, and maintainable design patterns in Python code.
+
+<rule>
+name: python_design_patterns_guide
+filters:
+  - type: file_extension
+    pattern: "\\.py$"
+  - type: event
+    pattern: "file_save"
+  - type: event
+    pattern: "file_create"
+  - type: event
+    pattern: "code_review" # Trigger during reviews
+
+actions:
+  - type: react
+    conditions:
+      - pattern: ".*\\.py$"
+    action: |
+      # Analyze Python code for preferred design patterns and anti-patterns
+      
+      I'll check code structure against recommended patterns:
+      
+      1. Dependency Management:
+         - **Prefer Dependency Injection (DI):** Pass dependencies (e.g., API clients, database connections, services) into classes or functions that need them, typically during initialization.
+           - **Why:** Enhances testability (pass mocks easily), improves decoupling, makes dependencies explicit.
+         - **Alternative (Simple Cases):** Module-level instances (singletons) can be acceptable for simple, stateless, globally shared resources where DI adds significant boilerplate.
+           - **Caveats:** Be mindful of potential global state side effects. Mocking requires careful targeting (patching where the instance is *used*).
+      
+      2. State Management:
+         - **Prefer Explicit State:** Manage state within classes or pass it explicitly between functions.
+         - **Avoid Implicit/Hidden State:** Do not store state in difficult-to-track places like function attributes or global variables without strong justification.
+      
+      3. Anti-Patterns to Avoid:
+         - **Function-Attribute Caching:** Avoid caching instances or state as attributes directly on function objects (e.g., using `hasattr(func, '_cache')`).
+           - **Why:** Non-standard, obscures state, difficult to test/mock reliably.
+         - **Overuse of Globals:** Minimize reliance on global variables; prefer passing state explicitly or using class/instance attributes.
+         - **God Objects:** Avoid creating single classes or modules that know or do too much. Strive for single responsibility and clear separation of concerns.
+      
+      4. General Principles:
+         - **Testability First:** Design components with testing in mind from the start. Ask: "How will I test this?".
+         - **Explicitness:** Favor explicit dependencies and state management over implicit ones.
+         - **Simplicity:** Prefer standard, well-understood patterns over overly complex or novel solutions unless there's a clear, significant benefit.
+         - **SOLID Principles:** Consider SOLID principles (Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion) as guidelines for robust object-oriented design.
+
+  - type: suggest
+    message: |
+      ### Python Design Patterns Guide
+
+      Consider these design patterns for maintainable Python:
+      
+      **Dependency Management:**
+      - **Prefer Dependency Injection (DI):** Pass dependencies in. Enhances testability & decoupling.
+      - **Alternative:** Module-level instances for simple, stateless resources (use with caution).
+      
+      **State Management:**
+      - Manage state explicitly within classes or function parameters.
+      - Avoid hidden state (e.g., on function objects).
+      
+      **Anti-Patterns to Avoid:**
+      - Function-attribute caching.
+      - Overuse of global variables.
+      - God Objects (classes/modules doing too much).
+      
+      **Principles:**
+      - Design for testability.
+      - Be explicit.
+      - Keep it simple.
+      - Consider SOLID principles.
+
+examples:
+  - input: |
+      # Anti-pattern: Function caching
+      def get_client():
+          if not hasattr(get_client, '_client'):
+              get_client._client = ExpensiveClient()
+          return get_client._client
+      
+      # Preferred: Module-level instance (simple case)
+      # In module client.py
+      _client = ExpensiveClient()
+      def get_client():
+          return _client
+          
+      # Preferred: Dependency Injection
+      class Service:
+          def __init__(self, client: ExpensiveClient):
+              self._client = client
+          def do_work(self):
+              self._client.call()
+              
+      # Usage
+      client = ExpensiveClient()
+      service = Service(client=client) 
+      service.do_work()
+      
+      # Testing with DI
+      mock_client = Mock(spec=ExpensiveClient)
+      test_service = Service(client=mock_client)
+      test_service.do_work()
+      mock_client.call.assert_called_once()
+      
+    output: "Code structure assessed against design pattern recommendations."
+
+metadata:
+  priority: medium # Lower than style, higher than performance?
+  version: 1.0
+</rule>

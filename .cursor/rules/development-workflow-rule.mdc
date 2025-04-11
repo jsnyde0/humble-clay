@@ -150,6 +150,24 @@ actions:
       - Add the task to the task index
       
       This ensures all implementation work is properly tracked
+
+  #
+  # SECTION 1.5: DESIGN PRINCIPLES (Influencing Tasks)
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "task create|task_start|implementation_start"
+    action: |
+      # Ensure design considers testability
+      
+      When planning or starting tasks, explicitly consider:
+      
+      1.  **Test Strategy:** How will this feature/component be tested (unit, integration, E2E)?
+      2.  **Testable Design:** Does the proposed design facilitate testing? Are dependencies manageable (e.g., via DI recommended in `@python-design-patterns.mdc`)?
+      3.  **Standard Patterns:** Favor standard design patterns (see `@python-design-patterns.mdc`) over bespoke solutions to improve clarity and testability.
+      
+      This proactive check helps prevent designs that are later difficult to test.
   
   #
   # SECTION 2: TESTING MANAGEMENT
