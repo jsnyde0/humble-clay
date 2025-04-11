@@ -107,6 +107,7 @@ const Config = require('../src/Config');
 const ApiClient = require('../src/ApiClient');
 const SimpleOutputField = require('../src/SimpleOutputField');
 const Code = require('../src/Code');
+const WebFetcher = require('../src/WebFetcher');
 
 // --- Make source functions global (wrapped with jest.fn and default implementation) ---
 
@@ -276,3 +277,15 @@ global.resetAllMocks = () => {
 // beforeEach(() => {
 //   resetAllMocks();
 // }); 
+
+// --- Make source functions global (wrapped with jest.fn) ---
+// This mimics GAS's global scope for functions, making them available in tests.
+global.validateRange = jest.fn(RangeUtils.validateRange);
+global.validateOutputColumn = jest.fn(RangeUtils.validateOutputColumn);
+global.makeApiRequest = jest.fn(ApiClient.makeApiRequest); // Example
+global.fetchWebPageContent = jest.fn(WebFetcher.fetchWebPageContent); // Added line
+global.convertHtmlToBasicMarkdown = jest.fn(WebFetcher.convertHtmlToBasicMarkdown); // Added line
+global.fetchWebPageAsMarkdown = jest.fn(WebFetcher.fetchWebPageAsMarkdown); // Added line
+// ... assign other required functions from required modules to global scope
+
+// ... rest of setup.js ... 
