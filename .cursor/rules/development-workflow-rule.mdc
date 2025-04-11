@@ -243,6 +243,7 @@ actions:
          - Document the failure details
          - Record potential solutions
          - Link to relevant code and specifications
+         - **If failure involves complex mocking:** Evaluate if refactoring the code for better testability (see `@python-design-patterns.mdc`) or switching to an integration test is more suitable than fixing the complex mock.
       
       3. Store the learning for future reference:
          - Save to `.cursor/learnings/` with proper ID (managed by the knowledge_management rule)
@@ -441,12 +442,14 @@ actions:
       - `task done` - Mark a task as complete
       - `task list` - Show all tasks with status
       - Automatic task creation for implementation requests
+      - **Design Check:** Testability and standard patterns considered during task planning.
 
       **Testing Framework:**
       - `test run` - Execute tests for the project
       - Automatic test file creation when implementation starts
       - Test coverage verification for source files
       - Test failure analysis and learning capture
+      - **Mock Complexity Check:** Failure analysis includes reviewing if complex mocks indicate a need for refactoring or integration tests.
 
       **Version Control:**
       - Automatic commits using conventional format
