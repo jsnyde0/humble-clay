@@ -1,9 +1,4 @@
 ---
-description: 
-globs: *.py
-alwaysApply: false
----
----
 description: Guidelines for preferred Python design patterns and anti-patterns
 globs: "**/*.py"
 alwaysApply: true
@@ -117,4 +112,4 @@ examples:
 metadata:
   priority: medium # Lower than style, higher than performance?
   version: 1.0
-</rule>
+</rule> 

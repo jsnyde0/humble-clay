@@ -53,6 +53,10 @@ actions:
          - Avoid test interdependence
          - Mock external dependencies
          - Use appropriate assertions (not just assert)
+         - **Mock Targeting:** Mocks MUST target the object where it is looked up/accessed within the code path under test (e.g., `patch('module.where.used.object_name', ...)`), not necessarily where it's defined.
+         - **Mocking vs. Integration:** Prefer integration tests over complex mocking for external dependencies that are stable, well-documented, and inexpensive to call (e.g., most LLM APIs). Mark integration tests clearly (e.g., `@pytest.mark.integration` or `@pytest.mark.llm`).
+         - **Refactor for Testability:** If mocking a component requires overly complex patching or deep knowledge of implementation details, consider refactoring the component design for better testability (see `@python-design-patterns.mdc`).
+         - **Avoid Mocking Internal Logic:** Mocks should primarily replace external dependencies or complex internal components *outside* the unit under test. Avoid mocking simple functions or internal implementation details *within* the unit under test, as this leads to brittle tests.
       
       4. Test Organization:
          - Place tests in tests/ directory
@@ -88,6 +92,8 @@ actions:
       - Independent tests
       - Mock externals
       - Clear assertions
+      - Target mocks correctly (where used)
+      - Prefer integration tests for cheap/stable APIs
       
       **Organization:**
       - tests/ directory
