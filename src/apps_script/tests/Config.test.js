@@ -124,7 +124,7 @@ describe('Config', () => {
       // Verify expectations
       expect(HtmlService.createHtmlOutput).toHaveBeenCalled();
       expect(mockHtmlOutput.setWidth).toHaveBeenCalledWith(400);
-      expect(mockHtmlOutput.setHeight).toHaveBeenCalledWith(300);
+      expect(mockHtmlOutput.setHeight).toHaveBeenCalledWith(380);
       expect(mockUi.showModalDialog).toHaveBeenCalled();
     });
   });

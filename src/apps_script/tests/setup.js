@@ -125,13 +125,18 @@ global.showMessage = jest.fn().mockImplementation(UI.showMessage);
 global.showApiConfigDialog = jest.fn().mockImplementation(UI.showApiConfigDialog);
 
 // Config
-global.getApiKey = jest.fn().mockImplementation(Config.getApiKey);
-global.setApiKey = jest.fn().mockImplementation(Config.setApiKey);
-global.getApiBaseUrl = jest.fn().mockImplementation(Config.getApiBaseUrl);
-global.setApiBaseUrl = jest.fn().mockImplementation(Config.setApiBaseUrl);
-global.validateApiKey = jest.fn().mockImplementation(Config.validateApiKey);
-global.validateConfig = jest.fn().mockImplementation(Config.validateConfig);
-global.isConfigured = jest.fn().mockImplementation(Config.isConfigured);
+global.getApiKey = jest.fn(Config.getApiKey);
+global.setApiKey = jest.fn(Config.setApiKey);
+global.getApiBaseUrl = jest.fn(Config.getApiBaseUrl);
+global.setApiBaseUrl = jest.fn(Config.setApiBaseUrl);
+global.showConfigDialog = jest.fn(Config.showConfigDialog);
+global.saveConfiguration = jest.fn(Config.saveConfiguration);
+global.isConfigured = jest.fn(Config.isConfigured);
+global.validateConfig = jest.fn(Config.validateConfig);
+global.validateApiKey = jest.fn(Config.validateApiKey);
+global.validateJinaApiKey = jest.fn(Config.validateJinaApiKey);
+global.getJinaApiKey = jest.fn(Config.getJinaApiKey);
+global.setJinaApiKey = jest.fn(Config.setJinaApiKey);
 
 // ApiClient
 global.processRangeWithApi = jest.fn().mockImplementation(ApiClient.processRangeWithApi);
@@ -283,9 +288,10 @@ global.resetAllMocks = () => {
 global.validateRange = jest.fn(RangeUtils.validateRange);
 global.validateOutputColumn = jest.fn(RangeUtils.validateOutputColumn);
 global.makeApiRequest = jest.fn(ApiClient.makeApiRequest); // Example
-global.fetchWebPageContent = jest.fn(WebFetcher.fetchWebPageContent); // Added line
-global.convertHtmlToBasicMarkdown = jest.fn(WebFetcher.convertHtmlToBasicMarkdown); // Added line
-global.fetchWebPageAsMarkdown = jest.fn(WebFetcher.fetchWebPageAsMarkdown); // Added line
+global.fetchWebPageContent = jest.fn(WebFetcher.fetchWebPageContent);
+global.convertHtmlToBasicMarkdown = jest.fn(WebFetcher.convertHtmlToBasicMarkdown);
+global.fetchWebPageAsMarkdown = jest.fn(WebFetcher.fetchWebPageAsMarkdown);
+global.fetchWebPageAsMarkdownJina = jest.fn(WebFetcher.fetchWebPageAsMarkdownJina); // Added line
 // ... assign other required functions from required modules to global scope
 
 // ... rest of setup.js ... 

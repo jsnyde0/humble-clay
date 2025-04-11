@@ -66,6 +66,7 @@ function showConfigDialog() {
   // Get current values
   const currentApiKey = getApiKey() || '';
   const currentApiUrl = getApiBaseUrl() || '';
+  const currentJinaKey = getJinaApiKey() || '';
 
   const html = HtmlService.createHtmlOutput(`
     <style>
@@ -92,29 +93,33 @@ function showConfigDialog() {
                placeholder="e.g., http://localhost:8000">
         <div class="hint">The base URL of your Humble Clay API</div>
       </div>
+      <div class="form-group">
+        <label for="jinaApiKey">Jina Reader API Key (Optional):</label>
+        <input type="password" id="jinaApiKey" name="jinaApiKey" 
+               value="${currentJinaKey}"
+               placeholder="Enter your Jina Reader API key">
+        <div class="hint">Optional. For improved web page conversion via Jina Reader.</div>
+      </div>
       <div id="error" class="error"></div>
       <div id="success" class="success"></div>
       <button type="submit">Save Configuration</button>
     </form>
     <script>
-      // Handle form submission
       document.getElementById('configForm').onsubmit = function(e) {
         e.preventDefault();
         const apiKey = document.getElementById('apiKey').value;
         const apiUrl = document.getElementById('apiUrl').value;
+        const jinaApiKey = document.getElementById('jinaApiKey').value;
         const errorDiv = document.getElementById('error');
         const successDiv = document.getElementById('success');
         
-        // Reset messages
         errorDiv.style.display = 'none';
         successDiv.style.display = 'none';
         
-        // Call the server-side function
         google.script.run
           .withSuccessHandler(function() {
             successDiv.textContent = 'Configuration saved successfully!';
             successDiv.style.display = 'block';
-            // Close the dialog after a short delay
             setTimeout(function() {
               google.script.host.close();
             }, 2000);
@@ -123,28 +128,56 @@ function showConfigDialog() {
             errorDiv.textContent = error.message || 'Failed to save configuration';
             errorDiv.style.display = 'block';
           })
-          .saveConfiguration(apiKey, apiUrl);
+          .saveConfiguration(apiKey, apiUrl, jinaApiKey);
       };
     </script>
   `)
   .setWidth(400)
-  .setHeight(300)
-  .setTitle('Configure Humble Clay API');
+  .setHeight(380);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Configure API');
 }
 
 /**
- * Saves both API key and URL configuration
- * @param {string} apiKey - The API key to save
- * @param {string} apiUrl - The API URL to save
+ * Saves API key, URL, and Jina key configuration.
+ * Only updates a property if a non-empty value is provided for it from the UI.
+ * Empty fields in the UI will leave existing stored values unchanged.
+ * @param {string} apiKeyFromUi - The Humble Clay API key from the UI
+ * @param {string} apiUrlFromUi - The API URL from the UI
+ * @param {string} jinaApiKeyFromUi - The Jina API key from the UI
  */
-function saveConfiguration(apiKey, apiUrl) {
-  // Validate and save API key
-  setApiKey(apiKey);
+function saveConfiguration(apiKeyFromUi, apiUrlFromUi, jinaApiKeyFromUi) {
   
-  // Validate and save API URL
-  setApiBaseUrl(apiUrl);
+  // Handle Humble Clay API Key
+  const trimmedApiKey = apiKeyFromUi ? apiKeyFromUi.trim() : '';
+  if (trimmedApiKey) {
+      Logger.log("Attempting to save Humble Clay API Key...");
+      setApiKey(trimmedApiKey); // Let setApiKey handle validation
+      Logger.log("Humble Clay API Key processed.");
+  } else {
+      Logger.log("Humble Clay API Key field was empty in UI, preserving existing value.");
+  }
+
+  // Handle Humble Clay API URL
+  const trimmedApiUrl = apiUrlFromUi ? apiUrlFromUi.trim() : '';
+   if (trimmedApiUrl) {
+      Logger.log("Attempting to save API URL...");
+      setApiBaseUrl(trimmedApiUrl); // Let setApiBaseUrl handle validation
+      Logger.log("API URL processed.");
+  } else {
+       Logger.log("API URL field was empty in UI, preserving existing value.");
+  }
+
+  // Handle Jina API Key (Optional - only set if provided)
+  const trimmedJinaKey = jinaApiKeyFromUi ? jinaApiKeyFromUi.trim() : '';
+  if (trimmedJinaKey) {
+      Logger.log("Attempting to save Jina API Key...");
+      setJinaApiKey(trimmedJinaKey); // Let setJinaApiKey handle validation
+      Logger.log('Jina API Key processed.');
+  } else {
+      // If UI field was empty, do nothing, preserving the existing key.
+      Logger.log("Jina API Key field was empty in UI, preserving existing value.");
+  }
 }
 
 /**
@@ -192,6 +225,45 @@ function validateConfig() {
   };
 }
 
+/**
+ * Validates a Jina API key format (basic check)
+ * @param {string} apiKey - The API key to validate
+ * @returns {boolean} True if the API key format seems plausible
+ */
+function validateJinaApiKey(apiKey) {
+  if (!apiKey || typeof apiKey !== 'string') {
+    return false;
+  }
+  // Jina keys seem to be shorter, alphanumeric often
+  return apiKey.length > 10 && /^[a-zA-Z0-9]+$/.test(apiKey); 
+}
+
+/**
+ * Gets the stored Jina API key
+ * @returns {string|null} The Jina API key or null if not set
+ */
+function getJinaApiKey() {
+  return PropertiesService.getScriptProperties().getProperty('JINA_API_KEY');
+}
+
+/**
+ * Sets the Jina API key in script properties
+ * @param {string} apiKey - The Jina API key to store
+ * @throws {Error} If the API key is invalid (basic check)
+ */
+function setJinaApiKey(apiKey) {
+  // Optional basic validation
+  // if (!validateJinaApiKey(apiKey)) { 
+  //   throw new Error('Invalid Jina API key format (basic check failed)');
+  // }
+  // Allowing any non-empty string for now for flexibility
+  if (!apiKey || typeof apiKey !== 'string') {
+     throw new Error('Jina API key cannot be empty.');
+  }
+  
+  PropertiesService.getScriptProperties().setProperty('JINA_API_KEY', apiKey);
+}
+
 // Only export for tests
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -203,6 +275,9 @@ if (typeof module !== 'undefined' && module.exports) {
     saveConfiguration,
     isConfigured,
     validateConfig,
-    validateApiKey
+    validateApiKey,
+    validateJinaApiKey,
+    getJinaApiKey,
+    setJinaApiKey
   };
 } 

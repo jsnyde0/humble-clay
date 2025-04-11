@@ -248,4 +248,171 @@ describe('WebFetcher', () => {
     });
   });
 
+  describe('fetchWebPageAsMarkdownJina', () => {
+    const targetUrl = 'https://example.com';
+    const jinaReaderUrl = `https://r.jina.ai/${targetUrl}`;
+    const mockMarkdownContent = '# Example Domain\n\nThis domain is for use in illustrative examples in documents.';
+    const longMockMarkdownContent = '# Long Content\n\n' + 'a'.repeat(55000); // > 50k chars
+    const truncatedSuffix = '...';
+    const limit = 49900;
+
+
+    beforeEach(() => {
+      // Reset standard mocks
+      if (typeof global.resetAllMocks === 'function') {
+         global.resetAllMocks(); 
+      } else {
+         jest.clearAllMocks(); 
+      }
+      // Reset specific mocks used in this suite
+      global.getJinaApiKey.mockReset(); // Reset the mock for Config function
+    });
+
+    it('should call Jina Reader API without API key header if key is NOT configured', () => {
+        // Arrange
+        const mockResponse = { 
+            getResponseCode: jest.fn().mockReturnValue(200),
+            getContentText: jest.fn().mockReturnValue(mockMarkdownContent)
+        }; 
+        UrlFetchApp.fetch.mockReturnValue(mockResponse);
+        global.getJinaApiKey.mockReturnValue(null); // Mock config function returning null
+
+        // Act
+        const result = fetchWebPageAsMarkdownJina(targetUrl);
+
+        // Assert
+        expect(global.getJinaApiKey).toHaveBeenCalledTimes(1); // Verify config func called
+        const expectedOptions = {
+            muteHttpExceptions: true,
+            method: 'get',
+            headers: {} // Expect empty headers
+        };
+        expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+        expect(UrlFetchApp.fetch).toHaveBeenCalledWith(jinaReaderUrl, expectedOptions);
+        expect(result).toBe(mockMarkdownContent);
+        expect(Logger.log).toHaveBeenCalledWith('Jina API Key not found.');
+        expect(Logger.log).toHaveBeenCalledWith(`Successfully fetched and converted content from ${targetUrl} via Jina Reader.`);
+    });
+
+    it('should call Jina Reader API with API key header if key IS configured', () => {
+        // Arrange
+        const mockResponse = {
+            getResponseCode: jest.fn().mockReturnValue(200),
+            getContentText: jest.fn().mockReturnValue(mockMarkdownContent)
+        }; 
+        UrlFetchApp.fetch.mockReturnValue(mockResponse);
+        global.getJinaApiKey.mockReturnValue('fake-jina-key'); // Mock config function returning a key
+
+        // Act
+        const result = fetchWebPageAsMarkdownJina(targetUrl);
+
+        // Assert
+        expect(global.getJinaApiKey).toHaveBeenCalledTimes(1); // Verify config func called
+        const expectedOptions = {
+            muteHttpExceptions: true,
+            method: 'get',
+            headers: { 'X-API-Key': 'fake-jina-key' } // Expect header
+        };
+        expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+        expect(UrlFetchApp.fetch).toHaveBeenCalledWith(jinaReaderUrl, expectedOptions);
+        expect(result).toBe(mockMarkdownContent);
+        expect(Logger.log).toHaveBeenCalledWith('Jina API Key found.');
+        expect(Logger.log).toHaveBeenCalledWith(`Successfully fetched and converted content from ${targetUrl} via Jina Reader.`);
+    });
+    
+    it('should return null and log error on non-200 response from Jina', () => {
+      // Arrange
+      const mockResponse = {
+        getResponseCode: jest.fn().mockReturnValue(500),
+        getContentText: jest.fn().mockReturnValue('Internal Server Error'),
+      };
+      UrlFetchApp.fetch.mockReturnValue(mockResponse);
+      global.getJinaApiKey.mockReturnValue(null); // Mock config doesn't affect this path
+
+      // Act
+      const result = fetchWebPageAsMarkdownJina(targetUrl);
+
+      // Assert
+      expect(global.getJinaApiKey).toHaveBeenCalledTimes(1);
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+      expect(result).toBeNull();
+      expect(Logger.log).toHaveBeenCalledWith(`Jina Reader failed for ${targetUrl}. Response code: 500. Content: Internal Server Error`);
+    });
+
+    it('should return null and log error if UrlFetchApp throws an exception', () => {
+      // Arrange
+      const error = new Error('Network error');
+      UrlFetchApp.fetch.mockImplementation(() => {
+        throw error;
+      });
+      global.getJinaApiKey.mockReturnValue(null); // Mock config doesn't affect this path
+
+      // Act
+      const result = fetchWebPageAsMarkdownJina(targetUrl);
+
+      // Assert
+      expect(global.getJinaApiKey).toHaveBeenCalledTimes(1);
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+      expect(result).toBeNull();
+      expect(Logger.log).toHaveBeenCalledWith(`Error calling Jina Reader for URL ${targetUrl}: ${error}`);
+      expect(Logger.log).toHaveBeenCalledWith(`Failed URL: ${jinaReaderUrl}`);
+    });
+    
+    it('should return null and log error if target URL is not provided', () => {
+       // Act
+       const result = fetchWebPageAsMarkdownJina(null);
+
+       // Assert
+       expect(result).toBeNull();
+       expect(Logger.log).toHaveBeenCalledWith('Target URL parameter is required for Jina Reader.');
+       expect(UrlFetchApp.fetch).not.toHaveBeenCalled();
+       expect(global.getJinaApiKey).not.toHaveBeenCalled(); // Should not be called if URL is null
+    });
+
+    it('should truncate markdown if it exceeds the custom function limit (with API key)', () => {
+        // Arrange
+        const mockResponse = {
+          getResponseCode: jest.fn().mockReturnValue(200),
+          getContentText: jest.fn().mockReturnValue(longMockMarkdownContent),
+        };
+        UrlFetchApp.fetch.mockReturnValue(mockResponse);
+        global.getJinaApiKey.mockReturnValue('fake-jina-key'); // Test with API key
+        
+        const lastSpaceIndex = longMockMarkdownContent.lastIndexOf(' ', limit); 
+        const expectedLength = (lastSpaceIndex > 0 ? lastSpaceIndex : limit) + truncatedSuffix.length;
+
+        // Act
+        const result = fetchWebPageAsMarkdownJina(targetUrl);
+
+        // Assert
+        expect(global.getJinaApiKey).toHaveBeenCalledTimes(1);
+        expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+        expect(result).not.toBe(longMockMarkdownContent);
+        expect(result.endsWith(truncatedSuffix)).toBe(true);
+        expect(result.length).toBe(expectedLength); 
+        expect(Logger.log).toHaveBeenCalledWith(expect.stringContaining('Jina Reader content exceeded limit'));
+        expect(Logger.log).toHaveBeenCalledWith(expect.stringContaining('Truncating'));
+    });
+      
+    it('should NOT truncate markdown if it is within the limit (no API key)', () => {
+        // Arrange
+        const mockResponse = {
+          getResponseCode: jest.fn().mockReturnValue(200),
+          getContentText: jest.fn().mockReturnValue(mockMarkdownContent), 
+        };
+        UrlFetchApp.fetch.mockReturnValue(mockResponse);
+        global.getJinaApiKey.mockReturnValue(null); // Test without API key
+
+        // Act
+        const result = fetchWebPageAsMarkdownJina(targetUrl);
+
+        // Assert
+        expect(global.getJinaApiKey).toHaveBeenCalledTimes(1);
+        expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+        expect(result).toBe(mockMarkdownContent); 
+        expect(Logger.log).not.toHaveBeenCalledWith(expect.stringContaining('Truncating'));
+    });
+
+  });
+
 }); 

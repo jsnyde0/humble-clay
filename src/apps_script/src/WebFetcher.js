@@ -125,12 +125,72 @@ function fetchWebPageAsMarkdown(url) {
   }
 }
 
+/**
+ * Fetches the Markdown content of a given URL using the Jina Reader API.
+ * See: https://jina.ai/reader/
+ *
+ * @param {string} targetUrl The original URL of the web page to fetch and convert.
+ * @return {string} The Markdown content from Jina Reader, or null if an error occurs.
+ * @customfunction
+ */
+function fetchWebPageAsMarkdownJina(targetUrl) {
+  if (!targetUrl) {
+    Logger.log('Target URL parameter is required for Jina Reader.');
+    return null;
+  }
+
+  // Construct the Jina Reader API URL
+  const jinaReaderUrl = `https://r.jina.ai/${targetUrl}`;
+  Logger.log(`Using Jina Reader API: ${jinaReaderUrl}`);
+
+  try {
+    // Retrieve Jina API Key using Config module
+    const jinaApiKey = getJinaApiKey(); // Use the function from Config.js
+    Logger.log(jinaApiKey ? 'Jina API Key found.' : 'Jina API Key not found.');
+
+    const options = {
+      muteHttpExceptions: true, 
+      method: 'get',
+      headers: {
+        // Conditionally add the API key header if it exists
+        ...(jinaApiKey && { 'X-API-Key': jinaApiKey }) 
+      }
+    };
+    
+    const response = UrlFetchApp.fetch(jinaReaderUrl, options);
+    const responseCode = response.getResponseCode();
+    const content = response.getContentText(); // Jina Reader returns Markdown/text directly
+
+    if (responseCode === 200) {
+      Logger.log(`Successfully fetched and converted content from ${targetUrl} via Jina Reader.`);
+      // The content *should* already be Markdown, but check for the character limit
+      // If using as a custom function, truncation might still be needed
+      const LIMIT = 49900; // Stay safely below 50k for custom functions
+      if (content && content.length > LIMIT) {
+         Logger.log(`Jina Reader content exceeded limit (${content.length} chars). Truncating.`);
+         const lastSpace = content.lastIndexOf(' ', LIMIT);
+         const truncatedContent = (lastSpace > 0) ? content.substring(0, lastSpace) + '...' : content.substring(0, LIMIT) + '...';
+         return truncatedContent;
+      }
+      return content; 
+    } else {
+      Logger.log(`Jina Reader failed for ${targetUrl}. Response code: ${responseCode}. Content: ${content}`);
+      return null; // Indicate failure
+    }
+  } catch (error) {
+    Logger.log(`Error calling Jina Reader for URL ${targetUrl}: ${error}`);
+    Logger.log(`Failed URL: ${jinaReaderUrl}`);
+    return null; // Indicate failure
+  }
+}
+
 // Export functions if using modules with clasp
 // Add appropriate export syntax if needed based on your project setup
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { 
     fetchWebPageContent, 
     fetchWebPageAsMarkdown, 
-    convertHtmlToBasicMarkdown 
+    convertHtmlToBasicMarkdown,
+    fetchWebPageAsMarkdownJina
   };
 } 
