@@ -415,4 +415,233 @@ describe('WebFetcher', () => {
 
   });
 
-}); 
+  // --- Tests for the Sitemap Fetching and Parsing function ---
+  describe('fetchAndParseSitemapUrls', () => {
+    const baseUrl = 'http://sitemap-test.com';
+    const sitemapUrl = `${baseUrl}/sitemap.xml`;
+    const mockValidSitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>http://sitemap-test.com/page1</loc>
+    <lastmod>2025-01-01</lastmod>
+  </url>
+  <url>
+    <loc>http://sitemap-test.com/page2</loc>
+  </url>
+</urlset>`;
+    const mockSitemapIndexXml = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+   <sitemap>
+      <loc>http://sitemap-test.com/sitemap1.xml.gz</loc>
+      <lastmod>2025-03-05T18:32:13+00:00</lastmod>
+   </sitemap>
+   <sitemap>
+      <loc>http://sitemap-test.com/sitemap2.xml.gz</loc>
+      <lastmod>2024-01-01</lastmod>
+   </sitemap>
+</sitemapindex>`;
+    const mockEmptySitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+</urlset>`;
+    const mockInvalidXml = `<?xml version="1.0" encoding="UTF-8"?><urlset><url><loc>incomplete</urlset>`;
+    
+    const expectedUrls = [
+        ['http://sitemap-test.com/page1'],
+        ['http://sitemap-test.com/page2']
+    ];
+    
+    // Ensure mocks are cleared - assuming global beforeEach handles this
+    // beforeEach(() => { ... }); // Already defined globally
+
+    it('should fetch, parse, and return URLs from a valid sitemap', () => {
+      // Arrange
+      const mockResponse = {
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(mockValidSitemapXml),
+      };
+      UrlFetchApp.fetch.mockReturnValue(mockResponse);
+      // --- Setup detailed XmlService mock for THIS test ---
+      const mockLoc1 = { getText: jest.fn().mockReturnValue('http://sitemap-test.com/page1') };
+      const mockLoc2 = { getText: jest.fn().mockReturnValue('http://sitemap-test.com/page2') };
+      // Mock the behavior of getChild('loc', namespace)
+      const mockUrl1 = { getChild: jest.fn().mockReturnValue(mockLoc1) }; 
+      const mockUrl2 = { getChild: jest.fn().mockReturnValue(mockLoc2) }; 
+      const mockRoot = {
+        // First call is for 'sitemap' (index check), second for 'url'
+        getChildren: jest.fn()
+          .mockReturnValueOnce([]) 
+          .mockReturnValueOnce([mockUrl1, mockUrl2]) 
+      };
+      const mockDoc = { getRootElement: jest.fn().mockReturnValue(mockRoot) };
+      global.XmlService.parse.mockReturnValue(mockDoc); // Override default mock
+      // Ensure the getChild mock is specific to the 'loc' tag
+      mockUrl1.getChild.mockImplementation((name, ns) => name === 'loc' ? mockLoc1 : null);
+      mockUrl2.getChild.mockImplementation((name, ns) => name === 'loc' ? mockLoc2 : null);
+      // --- End XmlService mock setup ---
+
+      // Act
+      const result = fetchAndParseSitemapUrls(baseUrl);
+
+      // Assert
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+      expect(UrlFetchApp.fetch).toHaveBeenCalledWith(sitemapUrl, expect.objectContaining({ muteHttpExceptions: true }));
+      expect(result).toEqual(expectedUrls);
+      expect(Logger.log).toHaveBeenCalledWith(`Successfully fetched sitemap content from ${sitemapUrl}. Length: ${mockValidSitemapXml.length}`);
+      expect(Logger.log).toHaveBeenCalledWith(expect.stringContaining('Found 2 <url> elements.'));
+      expect(Logger.log).toHaveBeenCalledWith('Extracted 2 URLs.');
+    });
+
+    it('should handle base URL with trailing slash', () => {
+      // Arrange
+      const mockResponse = {
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(mockValidSitemapXml),
+      };
+      UrlFetchApp.fetch.mockReturnValue(mockResponse);
+      const baseUrlWithSlash = baseUrl + '/';
+      // --- Setup detailed XmlService mock for THIS test (same as above) ---
+      const mockLoc1 = { getText: jest.fn().mockReturnValue('http://sitemap-test.com/page1') };
+      const mockLoc2 = { getText: jest.fn().mockReturnValue('http://sitemap-test.com/page2') };
+      const mockUrl1 = { getChild: jest.fn().mockReturnValue(mockLoc1) };
+      const mockUrl2 = { getChild: jest.fn().mockReturnValue(mockLoc2) };
+      const mockRoot = {
+        getChildren: jest.fn()
+          .mockReturnValueOnce([]) // For sitemap index check
+          .mockReturnValueOnce([mockUrl1, mockUrl2]) // For url check
+      };
+      const mockDoc = { getRootElement: jest.fn().mockReturnValue(mockRoot) };
+      global.XmlService.parse.mockReturnValue(mockDoc); // Override default mock
+      mockUrl1.getChild.mockImplementation((name, ns) => name === 'loc' ? mockLoc1 : null);
+      mockUrl2.getChild.mockImplementation((name, ns) => name === 'loc' ? mockLoc2 : null);
+      // --- End XmlService mock setup ---
+
+      // Act
+      const result = fetchAndParseSitemapUrls(baseUrlWithSlash);
+
+      // Assert
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+      // Crucially, check it fetched WITHOUT the double slash
+      expect(UrlFetchApp.fetch).toHaveBeenCalledWith(sitemapUrl, expect.anything()); 
+      expect(result).toEqual(expectedUrls);
+    });
+
+    it('should return info message for a sitemap index file', () => {
+       // Arrange
+       const mockResponse = {
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(mockSitemapIndexXml),
+      };
+      UrlFetchApp.fetch.mockReturnValue(mockResponse);
+       // --- Setup detailed XmlService mock for THIS test ---
+       const mockSitemapElement1 = { /* doesn't need children for this test */ }; 
+       const mockSitemapElement2 = { /* doesn't need children for this test */ }; 
+       const mockRoot = {
+         // First call is for 'sitemap' (index check)
+         getChildren: jest.fn()
+           .mockReturnValueOnce([mockSitemapElement1, mockSitemapElement2]) 
+           // We don't expect a second call for 'url' in this case
+       };
+       const mockDoc = { getRootElement: jest.fn().mockReturnValue(mockRoot) };
+       global.XmlService.parse.mockReturnValue(mockDoc); // Override default mock
+       // --- End XmlService mock setup ---
+      
+      // Act
+      const result = fetchAndParseSitemapUrls(baseUrl);
+
+      // Assert
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([['#INFO: Sitemap index detected, URLs not extracted']]);
+      expect(Logger.log).toHaveBeenCalledWith('Detected a sitemap index file. This function currently only parses URLs from standard sitemaps, not index files.');
+    });
+
+    it('should return error message on fetch failure (404)', () => {
+      // Arrange
+      const mockResponse = {
+        getResponseCode: jest.fn().mockReturnValue(404),
+        getContentText: jest.fn().mockReturnValue('Not Found'),
+      };
+      UrlFetchApp.fetch.mockReturnValue(mockResponse);
+
+      // Act
+      const result = fetchAndParseSitemapUrls(baseUrl);
+
+      // Assert
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([['#ERROR: Failed to fetch sitemap (Code: 404)']]);
+      expect(Logger.log).toHaveBeenCalledWith(`Failed to fetch sitemap from ${sitemapUrl}. Response code: 404. Content: Not Found`);
+    });
+    
+    it('should return error message on fetch exception', () => {
+       // Arrange
+       const error = new Error('Network timeout');
+       UrlFetchApp.fetch.mockImplementation(() => {
+           throw error;
+       });
+       
+       // Act
+       const result = fetchAndParseSitemapUrls(baseUrl);
+
+       // Assert
+       expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+       expect(result).toEqual([[`#ERROR: Fetch error: ${error.message}`]]);
+       expect(Logger.log).toHaveBeenCalledWith(`Error fetching sitemap URL ${sitemapUrl}: ${error}`);
+    });
+    
+    it('should return error message on XML parse error', () => {
+       // Arrange
+       const mockResponse = {
+         getResponseCode: jest.fn().mockReturnValue(200),
+         getContentText: jest.fn().mockReturnValue(mockInvalidXml),
+       };
+       UrlFetchApp.fetch.mockReturnValue(mockResponse);
+       // Simulate XmlService parse failure 
+       // (assuming setup.js mock throws on invalid input, or manually mock it)
+       const parseError = new Error('Invalid XML');
+       global.XmlService.parse.mockImplementation(() => { 
+         throw parseError; 
+       });
+
+       // Act
+       const result = fetchAndParseSitemapUrls(baseUrl);
+       
+       // Assert
+       expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+       expect(global.XmlService.parse).toHaveBeenCalledWith(mockInvalidXml);
+       expect(result).toEqual([[`#ERROR: XML Parse error: ${parseError.message}`]]);
+       expect(Logger.log).toHaveBeenCalledWith(`Error parsing XML from ${sitemapUrl}: ${parseError}`);
+       expect(Logger.log).toHaveBeenCalledWith(expect.stringContaining(`XML Content (first 500 chars):`));
+    });
+
+    it('should return empty array if sitemap has no <url> elements', () => {
+      // Arrange
+      const mockResponse = {
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(mockEmptySitemapXml),
+      };
+      UrlFetchApp.fetch.mockReturnValue(mockResponse);
+
+      // Act
+      const result = fetchAndParseSitemapUrls(baseUrl);
+
+      // Assert
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([[]]); // Expect empty 2D array
+      expect(Logger.log).toHaveBeenCalledWith('No <url> elements found in the sitemap.');
+    });
+
+    it('should return error message if base URL is null or not a string', () => {
+      // Test null
+      const resultNull = fetchAndParseSitemapUrls(null);
+      expect(resultNull).toEqual([['#ERROR: Base URL required']]);
+      expect(Logger.log).toHaveBeenCalledWith('Base URL parameter is required and must be a string.');
+      
+      // Test number
+      const resultNum = fetchAndParseSitemapUrls(123);
+      expect(resultNum).toEqual([['#ERROR: Base URL required']]);
+      
+      expect(UrlFetchApp.fetch).not.toHaveBeenCalled(); // Should not attempt fetch
+    });
+
+  }); // End describe fetchAndParseSitemapUrls
+
+}); // End describe WebFetcher 

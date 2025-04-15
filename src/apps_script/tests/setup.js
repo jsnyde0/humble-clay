@@ -100,6 +100,25 @@ global.UrlFetchApp = {
   })
 };
 
+// Mock XmlService
+const mockXmlElement = {
+  // Mock common element methods needed by the sitemap parser
+  getChildren: jest.fn().mockReturnValue([]), // Default to no children
+  getChild: jest.fn().mockReturnValue(null),   // Default to no child
+  getText: jest.fn().mockReturnValue(''),         // Default to empty text
+  getName: jest.fn().mockReturnValue('mockElement')
+};
+const mockXmlDocument = {
+  getRootElement: jest.fn().mockReturnValue(mockXmlElement)
+};
+const mockXmlNamespace = {
+  // Mock namespace object (usually just used as an identifier)
+};
+global.XmlService = {
+  parse: jest.fn().mockReturnValue(mockXmlDocument), // Default to returning a mock doc
+  getNamespace: jest.fn().mockReturnValue(mockXmlNamespace)
+};
+
 // --- Load functions from source files using conditional exports ---
 const RangeUtils = require('../src/RangeUtils');
 const UI = require('../src/UI');
@@ -164,6 +183,13 @@ global.extractColumnReferences = jest.fn(template => {
   return [...new Set(matches.map(match => match.slice(1, -1)))];
 });
 // global.columnToIndex is now in RangeUtils
+
+// WebFetcher
+global.fetchWebPageContent = jest.fn().mockImplementation(WebFetcher.fetchWebPageContent);
+global.fetchWebPageAsMarkdown = jest.fn().mockImplementation(WebFetcher.fetchWebPageAsMarkdown);
+global.convertHtmlToBasicMarkdown = jest.fn().mockImplementation(WebFetcher.convertHtmlToBasicMarkdown);
+global.fetchWebPageAsMarkdownJina = jest.fn().mockImplementation(WebFetcher.fetchWebPageAsMarkdownJina);
+global.fetchAndParseSitemapUrls = jest.fn().mockImplementation(WebFetcher.fetchAndParseSitemapUrls);
 
 // Mock the global processPrompt function with a direct implementation
 global.processPrompt = jest.fn((outputColumn, promptTemplate, startRow = null, endRow = null, schema = null, fieldPath = '') => {
@@ -264,6 +290,33 @@ global.resetAllMocks = () => {
 
   // Reset script properties cache
   Object.keys(scriptProperties).forEach(key => { delete scriptProperties[key]; });
+
+  // Reset specific mock implementations back to their default states
+  global.UrlFetchApp.fetch.mockImplementation(jest.fn().mockReturnValue({
+    getResponseCode: jest.fn().mockReturnValue(200),
+    getContentText: jest.fn().mockReturnValue(JSON.stringify({
+      responses: [
+        { response: "Default mock response", status: "success" }
+      ]
+    }))
+  }));
+  
+  // Reset XmlService mocks back to their defaults
+  const defaultMockXmlElement = {
+    getChildren: jest.fn().mockReturnValue([]),
+    getChild: jest.fn().mockReturnValue(null),
+    getText: jest.fn().mockReturnValue(''),
+    getName: jest.fn().mockReturnValue('mockElement')
+  };
+  const defaultMockXmlDocument = {
+    getRootElement: jest.fn().mockReturnValue(defaultMockXmlElement)
+  };
+  global.XmlService.parse.mockImplementation(jest.fn().mockReturnValue(defaultMockXmlDocument));
+  // Ensure the element methods are also reset if they might be individually mocked
+  defaultMockXmlElement.getChildren.mockClear();
+  defaultMockXmlElement.getChild.mockClear();
+  defaultMockXmlElement.getText.mockClear();
+  defaultMockXmlDocument.getRootElement.mockClear();
 
   // Re-apply default mock implementations IF NEEDED (jest.clearAllMocks might suffice)
   // Often, just clearing calls/instances is enough, and re-applying defaults

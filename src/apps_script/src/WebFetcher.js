@@ -184,6 +184,97 @@ function fetchWebPageAsMarkdownJina(targetUrl) {
   }
 }
 
+/**
+ * Fetches a website's sitemap (assumed to be at /sitemap.xml) 
+ * and parses it to extract the URLs listed within <loc> tags.
+ *
+ * @param {string} baseUrl The base URL of the website (e.g., "https://www.example.com"). Do not include trailing slash.
+ * @return {string[][]} A two-dimensional array (for spilling) containing the extracted URLs, or an error message if fetching/parsing fails. Returns empty if no URLs found.
+ * @customfunction
+ */
+function fetchAndParseSitemapUrls(baseUrl) {
+  if (!baseUrl || typeof baseUrl !== 'string') {
+    Logger.log('Base URL parameter is required and must be a string.');
+    return [['#ERROR: Base URL required']]; // Return 2D array for Sheets error display
+  }
+
+  // Remove trailing slash if present
+  if (baseUrl.endsWith('/')) {
+      baseUrl = baseUrl.slice(0, -1);
+  }
+
+  const sitemapUrl = baseUrl + '/sitemap.xml';
+  Logger.log(`Attempting to fetch sitemap from: ${sitemapUrl}`);
+  let xmlContent;
+
+  try {
+    const response = UrlFetchApp.fetch(sitemapUrl, {
+      muteHttpExceptions: true,
+      validateHttpsCertificates: true, // Good practice
+      followRedirects: true // Follow redirects if sitemap moved
+    });
+
+    const responseCode = response.getResponseCode();
+    xmlContent = response.getContentText();
+
+    if (responseCode !== 200) {
+      Logger.log(`Failed to fetch sitemap from ${sitemapUrl}. Response code: ${responseCode}. Content: ${xmlContent}`);
+      // Check robots.txt as a fallback? (Future enhancement)
+      return [[`#ERROR: Failed to fetch sitemap (Code: ${responseCode})`]];
+    }
+    Logger.log(`Successfully fetched sitemap content from ${sitemapUrl}. Length: ${xmlContent.length}`);
+
+  } catch (error) {
+    Logger.log(`Error fetching sitemap URL ${sitemapUrl}: ${error}`);
+    return [[`#ERROR: Fetch error: ${error.message}`]];
+  }
+
+  // --- Parse the XML ---
+  const urls = [];
+  try {
+    const document = XmlService.parse(xmlContent);
+    const root = document.getRootElement();
+    // Define the standard sitemap namespace
+    const namespace = XmlService.getNamespace('http://www.sitemaps.org/schemas/sitemap/0.9');
+    
+    // Check if it's a sitemap index file first
+    const sitemapIndexElements = root.getChildren('sitemap', namespace);
+    if (sitemapIndexElements && sitemapIndexElements.length > 0) {
+        Logger.log('Detected a sitemap index file. This function currently only parses URLs from standard sitemaps, not index files.');
+        // Future enhancement: Recursively fetch and parse indexed sitemaps
+        return [['#INFO: Sitemap index detected, URLs not extracted']]; 
+    }
+
+    // Assuming it's a standard urlset
+    const urlElements = root.getChildren('url', namespace);
+    
+    if (!urlElements || urlElements.length === 0) {
+         Logger.log('No <url> elements found in the sitemap.');
+         return [[]]; // Return empty 2D array if no URLs
+    }
+
+    Logger.log(`Found ${urlElements.length} <url> elements.`);
+
+    urlElements.forEach(urlElement => {
+      const locElement = urlElement.getChild('loc', namespace);
+      if (locElement) {
+        const urlText = locElement.getText();
+        if (urlText) {
+          urls.push([urlText]); // Push as a single-element array for 2D structure
+        }
+      }
+    });
+    
+    Logger.log(`Extracted ${urls.length} URLs.`);
+    return urls.length > 0 ? urls : [[]]; // Return URLs or empty 2D array
+
+  } catch (error) {
+    Logger.log(`Error parsing XML from ${sitemapUrl}: ${error}`);
+    Logger.log(`XML Content (first 500 chars): ${xmlContent.substring(0, 500)}`);
+    return [[`#ERROR: XML Parse error: ${error.message}`]];
+  }
+}
+
 // Export functions if using modules with clasp
 // Add appropriate export syntax if needed based on your project setup
 if (typeof module !== 'undefined' && module.exports) {
@@ -191,6 +282,7 @@ if (typeof module !== 'undefined' && module.exports) {
     fetchWebPageContent, 
     fetchWebPageAsMarkdown, 
     convertHtmlToBasicMarkdown,
-    fetchWebPageAsMarkdownJina
+    fetchWebPageAsMarkdownJina,
+    fetchAndParseSitemapUrls
   };
 } 
