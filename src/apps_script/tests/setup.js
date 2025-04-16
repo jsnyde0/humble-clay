@@ -142,6 +142,10 @@ global.createMenu = jest.fn().mockImplementation(UI.createMenu);
 global.showError = jest.fn().mockImplementation(UI.showError);
 global.showMessage = jest.fn().mockImplementation(UI.showMessage);
 global.showApiConfigDialog = jest.fn().mockImplementation(UI.showApiConfigDialog);
+global.validatePromptTemplate = jest.fn().mockImplementation(UI.validatePromptTemplate);
+global.validateRowRange = jest.fn().mockImplementation(UI.validateRowRange);
+global.updateStatusIndicator = jest.fn().mockImplementation(UI.updateStatusIndicator);
+global.validateColumnReferences = jest.fn().mockImplementation(UI.validateColumnReferences);
 
 // Config
 global.getApiKey = jest.fn(Config.getApiKey);
@@ -168,8 +172,9 @@ global.makeApiRequest = jest.fn().mockImplementation(ApiClient.makeApiRequest);
 global.formatRequestPayload = jest.fn().mockImplementation(ApiClient.formatRequestPayload);
 global.handleApiResponse = jest.fn().mockImplementation(ApiClient.handleApiResponse);
 global.processBatch = jest.fn().mockImplementation(ApiClient.processBatch);
-// Note: processPrompt and processPromptBatch seem to have been removed from ApiClient source, so not mocked here.
-// If they were added back, they'd need conditional exports and mocking here.
+global.loadApiConfig = jest.fn().mockImplementation(ApiClient.loadApiConfig);
+global.retryWithBackoff = jest.fn().mockImplementation(ApiClient.retryWithBackoff);
+global.shouldRetry = jest.fn().mockImplementation(ApiClient.shouldRetry);
 
 // SimpleOutputField
 global.parseSimpleSyntax = jest.fn().mockImplementation(SimpleOutputField.parseSimpleSyntax);
@@ -179,13 +184,11 @@ global.extractFieldPathFromSyntax = jest.fn().mockImplementation(SimpleOutputFie
 // Code
 global.onOpen = jest.fn().mockImplementation(Code.onOpen);
 global.showSidebar = jest.fn().mockImplementation(Code.showSidebar);
-// global.showConfigDialog is defined in UI.js now
-// global.validateApiConfig is defined in Config.js now
+global.validateApiConfig = jest.fn().mockImplementation(Code.validateApiConfig);
 global.processRange = jest.fn().mockImplementation(Code.processRange);
 global.processPrompt = jest.fn().mockImplementation(Code.processPrompt);
 global.extractColumnReferences = jest.fn(Code.extractColumnReferences);
 global.HUMBLECLAY_PROMPT = jest.fn().mockImplementation(Code.HUMBLECLAY_PROMPT);
-// global.columnToIndex is now in RangeUtils
 
 // WebFetcher
 global.fetchWebPageContent = jest.fn().mockImplementation(WebFetcher.fetchWebPageContent);

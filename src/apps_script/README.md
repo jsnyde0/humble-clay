@@ -10,6 +10,18 @@ Google Apps Script integration for the Humble Clay API.
 - Error handling and user feedback
 - Simple echo transformation (Stage 1)
 
+### Custom Spreadsheet Functions
+- `=HUMBLECLAY_PROMPT(arg1, [arg2], ...)`: Concatenates all arguments into a single string and sends it as a prompt to the configured Humble Clay API endpoint. Returns the API response text.
+- `=SEARCH_SERPER(query, [search_type])`: Performs a search using the Serper.dev API. 
+    - `query`: The search query string (or URL if `search_type` is 'webpage').
+    - `search_type` (Optional): Specifies the API endpoint ('search', 'news', 'images', 'maps', 'scholar', 'webpage'). Defaults to 'search'.
+    - Returns the raw JSON response from Serper.
+- `=fetchWebPageContent(url)`: Fetches the raw HTML content of a web page.
+- `=fetchWebPageAsMarkdown(url)`: Fetches a web page and attempts a basic conversion to Markdown.
+- `=fetchWebPageAsMarkdownJina(url)`: Fetches and converts a web page to Markdown using the Jina Reader API (requires Jina API Key in config).
+- `=fetchAndParseSitemapUrls(baseUrl)`: Fetches `/sitemap.xml` for the given base URL and returns a newline-separated list of URLs found.
+- `=ADDONE(value)`: Simple test function that adds 1 to the input value.
+
 ### User Interface
 - Clean, responsive sidebar interface
 - Real-time input validation
@@ -23,6 +35,13 @@ Google Apps Script integration for the Humble Clay API.
 2. Click "Extensions" > "Apps Script"
 3. Copy the contents of the `src/apps_script/src/` directory into your Apps Script project
 4. Save and reload your sheet
+
+### Configuration (Required for API Functions)
+1. Open the Add-on menu ("Humble Clay") and select "Configure API".
+2. Enter your **Humble Clay API Key** and the **API URL** for your Humble Clay deployment.
+3. (Optional) Enter your **Jina Reader API Key** to enable the improved `=fetchWebPageAsMarkdownJina` function.
+4. (Optional) Enter your **Serper API Key** to enable the `=SEARCH_SERPER` function.
+5. Click "Save Configuration".
 
 ### Using the Add-on
 1. Click the "Humble Clay" menu item
