@@ -445,10 +445,7 @@ describe('WebFetcher', () => {
 </urlset>`;
     const mockInvalidXml = `<?xml version="1.0" encoding="UTF-8"?><urlset><url><loc>incomplete</urlset>`;
     
-    const expectedUrls = [
-        ['http://sitemap-test.com/page1'],
-        ['http://sitemap-test.com/page2']
-    ];
+    const expectedUrlsString = 'http://sitemap-test.com/page1\nhttp://sitemap-test.com/page2';
     
     // Ensure mocks are cleared - assuming global beforeEach handles this
     // beforeEach(() => { ... }); // Already defined globally
@@ -485,7 +482,7 @@ describe('WebFetcher', () => {
       // Assert
       expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
       expect(UrlFetchApp.fetch).toHaveBeenCalledWith(sitemapUrl, expect.objectContaining({ muteHttpExceptions: true }));
-      expect(result).toEqual(expectedUrls);
+      expect(result).toEqual(expectedUrlsString);
       expect(Logger.log).toHaveBeenCalledWith(`Successfully fetched sitemap content from ${sitemapUrl}. Length: ${mockValidSitemapXml.length}`);
       expect(Logger.log).toHaveBeenCalledWith(expect.stringContaining('Found 2 <url> elements.'));
       expect(Logger.log).toHaveBeenCalledWith('Extracted 2 URLs.');
@@ -522,7 +519,7 @@ describe('WebFetcher', () => {
       expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
       // Crucially, check it fetched WITHOUT the double slash
       expect(UrlFetchApp.fetch).toHaveBeenCalledWith(sitemapUrl, expect.anything()); 
-      expect(result).toEqual(expectedUrls);
+      expect(result).toEqual(expectedUrlsString);
     });
 
     it('should return info message for a sitemap index file', () => {
@@ -550,7 +547,7 @@ describe('WebFetcher', () => {
 
       // Assert
       expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
-      expect(result).toEqual([['#INFO: Sitemap index detected, URLs not extracted']]);
+      expect(result).toEqual('#INFO: Sitemap index detected, URLs not extracted');
       expect(Logger.log).toHaveBeenCalledWith('Detected a sitemap index file. This function currently only parses URLs from standard sitemaps, not index files.');
     });
 
@@ -567,7 +564,7 @@ describe('WebFetcher', () => {
 
       // Assert
       expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
-      expect(result).toEqual([['#ERROR: Failed to fetch sitemap (Code: 404)']]);
+      expect(result).toEqual('#ERROR: Failed to fetch sitemap (Code: 404)');
       expect(Logger.log).toHaveBeenCalledWith(`Failed to fetch sitemap from ${sitemapUrl}. Response code: 404. Content: Not Found`);
     });
     
@@ -583,7 +580,7 @@ describe('WebFetcher', () => {
 
        // Assert
        expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
-       expect(result).toEqual([[`#ERROR: Fetch error: ${error.message}`]]);
+       expect(result).toEqual(`#ERROR: Fetch error: ${error.message}`);
        expect(Logger.log).toHaveBeenCalledWith(`Error fetching sitemap URL ${sitemapUrl}: ${error}`);
     });
     
@@ -607,12 +604,12 @@ describe('WebFetcher', () => {
        // Assert
        expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
        expect(global.XmlService.parse).toHaveBeenCalledWith(mockInvalidXml);
-       expect(result).toEqual([[`#ERROR: XML Parse error: ${parseError.message}`]]);
+       expect(result).toEqual(`#ERROR: XML Parse error: ${parseError.message}`);
        expect(Logger.log).toHaveBeenCalledWith(`Error parsing XML from ${sitemapUrl}: ${parseError}`);
        expect(Logger.log).toHaveBeenCalledWith(expect.stringContaining(`XML Content (first 500 chars):`));
     });
 
-    it('should return empty array if sitemap has no <url> elements', () => {
+    it('should return empty string if sitemap has no <url> elements', () => {
       // Arrange
       const mockResponse = {
         getResponseCode: jest.fn().mockReturnValue(200),
@@ -625,19 +622,19 @@ describe('WebFetcher', () => {
 
       // Assert
       expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(1);
-      expect(result).toEqual([[]]); // Expect empty 2D array
+      expect(result).toEqual('');
       expect(Logger.log).toHaveBeenCalledWith('No <url> elements found in the sitemap.');
     });
 
     it('should return error message if base URL is null or not a string', () => {
       // Test null
       const resultNull = fetchAndParseSitemapUrls(null);
-      expect(resultNull).toEqual([['#ERROR: Base URL required']]);
+      expect(resultNull).toEqual('#ERROR: Base URL required');
       expect(Logger.log).toHaveBeenCalledWith('Base URL parameter is required and must be a string.');
       
       // Test number
       const resultNum = fetchAndParseSitemapUrls(123);
-      expect(resultNum).toEqual([['#ERROR: Base URL required']]);
+      expect(resultNum).toEqual('#ERROR: Base URL required');
       
       expect(UrlFetchApp.fetch).not.toHaveBeenCalled(); // Should not attempt fetch
     });

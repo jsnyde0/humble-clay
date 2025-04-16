@@ -189,13 +189,14 @@ function fetchWebPageAsMarkdownJina(targetUrl) {
  * and parses it to extract the URLs listed within <loc> tags.
  *
  * @param {string} baseUrl The base URL of the website (e.g., "https://www.example.com"). Do not include trailing slash.
- * @return {string[][]} A two-dimensional array (for spilling) containing the extracted URLs, or an error message if fetching/parsing fails. Returns empty if no URLs found.
+ * @return {string} A single string containing the extracted URLs separated by newlines, 
+ *                  or an error/info message string if fetching/parsing fails or an index is detected. Returns empty string if no URLs found.
  * @customfunction
  */
 function fetchAndParseSitemapUrls(baseUrl) {
   if (!baseUrl || typeof baseUrl !== 'string') {
     Logger.log('Base URL parameter is required and must be a string.');
-    return [['#ERROR: Base URL required']]; // Return 2D array for Sheets error display
+    return '#ERROR: Base URL required'; // Return string
   }
 
   // Remove trailing slash if present
@@ -220,13 +221,13 @@ function fetchAndParseSitemapUrls(baseUrl) {
     if (responseCode !== 200) {
       Logger.log(`Failed to fetch sitemap from ${sitemapUrl}. Response code: ${responseCode}. Content: ${xmlContent}`);
       // Check robots.txt as a fallback? (Future enhancement)
-      return [[`#ERROR: Failed to fetch sitemap (Code: ${responseCode})`]];
+      return `#ERROR: Failed to fetch sitemap (Code: ${responseCode})`; // Return string
     }
     Logger.log(`Successfully fetched sitemap content from ${sitemapUrl}. Length: ${xmlContent.length}`);
 
   } catch (error) {
     Logger.log(`Error fetching sitemap URL ${sitemapUrl}: ${error}`);
-    return [[`#ERROR: Fetch error: ${error.message}`]];
+    return `#ERROR: Fetch error: ${error.message}`; // Return string
   }
 
   // --- Parse the XML ---
@@ -242,7 +243,7 @@ function fetchAndParseSitemapUrls(baseUrl) {
     if (sitemapIndexElements && sitemapIndexElements.length > 0) {
         Logger.log('Detected a sitemap index file. This function currently only parses URLs from standard sitemaps, not index files.');
         // Future enhancement: Recursively fetch and parse indexed sitemaps
-        return [['#INFO: Sitemap index detected, URLs not extracted']]; 
+        return '#INFO: Sitemap index detected, URLs not extracted'; // Return string
     }
 
     // Assuming it's a standard urlset
@@ -250,7 +251,7 @@ function fetchAndParseSitemapUrls(baseUrl) {
     
     if (!urlElements || urlElements.length === 0) {
          Logger.log('No <url> elements found in the sitemap.');
-         return [[]]; // Return empty 2D array if no URLs
+         return ''; // Return empty string
     }
 
     Logger.log(`Found ${urlElements.length} <url> elements.`);
@@ -266,12 +267,13 @@ function fetchAndParseSitemapUrls(baseUrl) {
     });
     
     Logger.log(`Extracted ${urls.length} URLs.`);
-    return urls.length > 0 ? urls : [[]]; // Return URLs or empty 2D array
+    // --- MODIFICATION: Join the array into a single string ---
+    return urls.map(row => row[0]).join('\n'); 
 
   } catch (error) {
     Logger.log(`Error parsing XML from ${sitemapUrl}: ${error}`);
     Logger.log(`XML Content (first 500 chars): ${xmlContent.substring(0, 500)}`);
-    return [[`#ERROR: XML Parse error: ${error.message}`]];
+    return `#ERROR: XML Parse error: ${error.message}`; // Return string
   }
 }
 
