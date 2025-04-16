@@ -9,7 +9,10 @@ const {
   showConfigDialog,
   isConfigured,
   validateConfig,
-  validateApiKey
+  validateApiKey,
+  getSerperApiKey,
+  setSerperApiKey,
+  validateSerperApiKey
 } = require('../src/Config.js');
 
 describe('Config', () => {
@@ -126,6 +129,65 @@ describe('Config', () => {
       expect(mockHtmlOutput.setWidth).toHaveBeenCalledWith(400);
       expect(mockHtmlOutput.setHeight).toHaveBeenCalledWith(380);
       expect(mockUi.showModalDialog).toHaveBeenCalled();
+    });
+  });
+
+  // --- Serper API Key Tests ---
+  describe('Serper API Key Management', () => {
+    beforeEach(() => {
+      // Reset PropertiesService mock before each test
+      PropertiesService.getScriptProperties().getProperty.mockClear();
+      PropertiesService.getScriptProperties().setProperty.mockClear();
+      // Clear the underlying mock storage if necessary (depends on setup.js)
+      // If scriptProperties is global in setup.js, clear it: 
+      // Object.keys(scriptProperties).forEach(key => delete scriptProperties[key]);
+      // Or ensure resetAllMocks() handles it.
+      if (global.resetAllMocks) { resetAllMocks(); }
+    });
+
+    describe('validateSerperApiKey', () => {
+      it('should validate correct Serper API key format', () => {
+        const validKey = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
+        expect(validateSerperApiKey(validKey)).toBe(true);
+      });
+
+      it('should reject invalid Serper API key formats', () => {
+        expect(validateSerperApiKey(null)).toBe(false);
+        expect(validateSerperApiKey(123)).toBe(false);
+        expect(validateSerperApiKey('')).toBe(false);
+        expect(validateSerperApiKey('shortkey')).toBe(false);
+        expect(validateSerperApiKey('g'.repeat(64))).toBe(false); // Invalid hex
+        expect(validateSerperApiKey('a'.repeat(65))).toBe(false); // Too long
+      });
+    });
+
+    describe('getSerperApiKey', () => {
+      it('should return null when no Serper key is set', () => {
+        PropertiesService.getScriptProperties().getProperty.mockReturnValue(null);
+        expect(getSerperApiKey()).toBeNull();
+        expect(PropertiesService.getScriptProperties().getProperty).toHaveBeenCalledWith('SERPER_API_KEY');
+      });
+
+      it('should return the stored Serper key', () => {
+        const storedKey = 'f1e2d3c4b5a6f1e2d3c4b5a6f1e2d3c4b5a6f1e2d3c4b5a6f1e2d3c4b5a6f1e2';
+        PropertiesService.getScriptProperties().getProperty.mockReturnValue(storedKey);
+        expect(getSerperApiKey()).toBe(storedKey);
+        expect(PropertiesService.getScriptProperties().getProperty).toHaveBeenCalledWith('SERPER_API_KEY');
+      });
+    });
+
+    describe('setSerperApiKey', () => {
+      it('should store valid Serper API key', () => {
+        const validKey = 'c1d2e3f4a5b6c1d2e3f4a5b6c1d2e3f4a5b6c1d2e3f4a5b6c1d2e3f4a5b6c1d2';
+        setSerperApiKey(validKey);
+        expect(PropertiesService.getScriptProperties().setProperty).toHaveBeenCalledWith('SERPER_API_KEY', validKey);
+      });
+
+      it('should throw error for invalid Serper API key format', () => {
+        const invalidKey = 'invalid-key-format';
+        expect(() => setSerperApiKey(invalidKey)).toThrow('Invalid Serper API key format');
+        expect(PropertiesService.getScriptProperties().setProperty).not.toHaveBeenCalled();
+      });
     });
   });
 }); 

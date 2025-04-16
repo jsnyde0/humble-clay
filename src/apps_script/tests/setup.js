@@ -157,6 +157,11 @@ global.validateJinaApiKey = jest.fn(Config.validateJinaApiKey);
 global.getJinaApiKey = jest.fn(Config.getJinaApiKey);
 global.setJinaApiKey = jest.fn(Config.setJinaApiKey);
 
+// Mock Serper Config
+global.validateSerperApiKey = jest.fn(Config.validateSerperApiKey);
+global.getSerperApiKey = jest.fn(Config.getSerperApiKey);
+global.setSerperApiKey = jest.fn(Config.setSerperApiKey);
+
 // ApiClient
 global.processRangeWithApi = jest.fn().mockImplementation(ApiClient.processRangeWithApi);
 global.makeApiRequest = jest.fn().mockImplementation(ApiClient.makeApiRequest);
@@ -188,6 +193,7 @@ global.fetchWebPageAsMarkdown = jest.fn().mockImplementation(WebFetcher.fetchWeb
 global.convertHtmlToBasicMarkdown = jest.fn().mockImplementation(WebFetcher.convertHtmlToBasicMarkdown);
 global.fetchWebPageAsMarkdownJina = jest.fn().mockImplementation(WebFetcher.fetchWebPageAsMarkdownJina);
 global.fetchAndParseSitemapUrls = jest.fn().mockImplementation(WebFetcher.fetchAndParseSitemapUrls);
+global.SEARCH_SERPER = jest.fn().mockImplementation(WebFetcher.SEARCH_SERPER);
 
 // Mock the global processPrompt function with a direct implementation
 global.processPrompt = jest.fn((outputColumn, promptTemplate, startRow = null, endRow = null, schema = null, fieldPath = '') => {

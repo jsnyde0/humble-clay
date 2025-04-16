@@ -641,4 +641,133 @@ describe('WebFetcher', () => {
 
   }); // End describe fetchAndParseSitemapUrls
 
+  // --- SEARCH_SERPER Tests ---
+  describe('SEARCH_SERPER (Global)', () => {
+    const validApiKey = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
+    // Use a simpler mock response since we return raw JSON now
+    const mockGenericResponse = JSON.stringify({
+      request: { q: 'test query', type: 'search' },
+      results: [{ title: 'Result 1' }]
+    });
+    const mockWebpageResponse = JSON.stringify({ 
+      request: { url: 'https://example.com', type: 'webpage' }, 
+      html: '<html>...</html>' 
+    });
+
+    beforeEach(() => {
+      if (global.resetAllMocks) { global.resetAllMocks(); }
+      // Default mock for successful fetch
+      UrlFetchApp.fetch.mockReturnValue({
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(mockGenericResponse)
+      });
+      global.getSerperApiKey.mockReturnValue(validApiKey);
+    });
+
+    it('should return error if search query/URL is empty or invalid', () => {
+      expect(SEARCH_SERPER('')).toBe('#ERROR: Search query/URL must be a non-empty string'); // Updated error message check
+      expect(SEARCH_SERPER(null)).toBe('#ERROR: Search query/URL must be a non-empty string');
+      expect(SEARCH_SERPER(123)).toBe('#ERROR: Search query/URL must be a non-empty string');
+      expect(UrlFetchApp.fetch).not.toHaveBeenCalled();
+    });
+
+    it('should return error if Serper API key is not configured', () => {
+      global.getSerperApiKey.mockReturnValue(null);
+      expect(SEARCH_SERPER('test query')).toBe('#ERROR: Serper API key not configured');
+      expect(UrlFetchApp.fetch).not.toHaveBeenCalled();
+    });
+
+    it('should call Serper API with default type (search) and return raw JSON', () => {
+      const searchQuery = 'test query';
+      const expectedUrl = 'https://google.serper.dev/search';
+      const expectedPayload = JSON.stringify({ q: searchQuery });
+      const expectedOptions = expect.objectContaining({ // Use objectContaining for flexibility
+        method: 'post',
+        contentType: 'application/json',
+        payload: expectedPayload,
+        headers: expect.objectContaining({ 'X-API-KEY': validApiKey })
+      });
+
+      // Test with explicit default type and implicit default
+      const resultDefault = SEARCH_SERPER(searchQuery); // Implicit default
+      const resultExplicit = SEARCH_SERPER(searchQuery, 'search'); // Explicit default
+
+      expect(global.getSerperApiKey).toHaveBeenCalledTimes(2);
+      expect(UrlFetchApp.fetch).toHaveBeenCalledTimes(2);
+      expect(UrlFetchApp.fetch).toHaveBeenNthCalledWith(1, expectedUrl, expectedOptions);
+      expect(UrlFetchApp.fetch).toHaveBeenNthCalledWith(2, expectedUrl, expectedOptions);
+      // Expect the raw JSON string
+      expect(resultDefault).toBe(mockGenericResponse);
+      expect(resultExplicit).toBe(mockGenericResponse);
+    });
+
+    it('should call Serper API for news type and return raw JSON', () => {
+      const searchQuery = 'latest news';
+      const expectedUrl = 'https://google.serper.dev/news';
+      const expectedPayload = JSON.stringify({ q: searchQuery });
+      const expectedOptions = expect.objectContaining({ 
+          payload: expectedPayload 
+      });
+      const mockNewsResponse = JSON.stringify({ type: 'news', articles: [] });
+      UrlFetchApp.fetch.mockReturnValueOnce({
+          getResponseCode: jest.fn().mockReturnValue(200),
+          getContentText: jest.fn().mockReturnValue(mockNewsResponse)
+      });
+
+      const result = SEARCH_SERPER(searchQuery, 'news');
+
+      expect(UrlFetchApp.fetch).toHaveBeenCalledWith(expectedUrl, expectedOptions);
+      expect(result).toBe(mockNewsResponse);
+    });
+
+     it('should call Serper API for webpage type with correct URL and payload', () => {
+      const targetUrl = 'https://example.com/page';
+      const expectedApiUrl = 'https://scrape.serper.dev/'; // Scrape endpoint
+      const expectedPayload = JSON.stringify({ url: targetUrl }); // Payload uses 'url' key
+      const expectedOptions = expect.objectContaining({ 
+          payload: expectedPayload 
+      });
+      UrlFetchApp.fetch.mockReturnValueOnce({
+        getResponseCode: jest.fn().mockReturnValue(200),
+        getContentText: jest.fn().mockReturnValue(mockWebpageResponse)
+       });
+
+      const result = SEARCH_SERPER(targetUrl, 'webpage');
+
+      expect(UrlFetchApp.fetch).toHaveBeenCalledWith(expectedApiUrl, expectedOptions);
+      expect(result).toBe(mockWebpageResponse);
+    });
+
+    it('should return error on non-2xx response from Serper API', () => {
+      const errorResponseText = JSON.stringify({ message: 'Invalid API Key' });
+      UrlFetchApp.fetch.mockReturnValue({
+        getResponseCode: jest.fn().mockReturnValue(401),
+        getContentText: jest.fn().mockReturnValue(errorResponseText)
+      });
+
+      const result = SEARCH_SERPER('test query');
+      expect(result).toBe('#ERROR: Invalid API Key');
+    });
+    
+    it('should return generic error code on non-2xx response if error message cannot be parsed', () => {
+        UrlFetchApp.fetch.mockReturnValue({
+          getResponseCode: jest.fn().mockReturnValue(500),
+          getContentText: jest.fn().mockReturnValue('Internal Server Error') // Not JSON
+        });
+  
+        const result = SEARCH_SERPER('test query');
+        expect(result).toBe('#ERROR: API Error Code: 500');
+      });
+
+    it('should return error if UrlFetchApp.fetch throws an exception', () => {
+      const exceptionMessage = 'Network error';
+      UrlFetchApp.fetch.mockImplementation(() => {
+        throw new Error(exceptionMessage);
+      });
+
+      const result = SEARCH_SERPER('test query');
+      expect(result).toBe(`#ERROR: ${exceptionMessage}`);
+    });
+  });
+
 }); // End describe WebFetcher 

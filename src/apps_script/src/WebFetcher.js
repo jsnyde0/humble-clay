@@ -277,6 +277,97 @@ function fetchAndParseSitemapUrls(baseUrl) {
   }
 }
 
+/**
+ * Performs a Google Search using the Serper.dev API and returns the first result.
+ *
+ * @param {string} searchQuery The query string or URL (for 'webpage' type) to search for.
+ * @param {string} [searchType='search'] The type of search: 'search', 'news', 'images', 'maps', 'scholar', 'webpage'. Defaults to 'search'.
+ * @return {string} The raw JSON response string from the Serper API, or an error message.
+ * @customfunction
+ */
+function SEARCH_SERPER(searchQuery, searchType = 'search') {
+  searchType = searchType ? String(searchType).toLowerCase() : 'search'; // Normalize and default
+
+  if (!searchQuery || typeof searchQuery !== 'string') {
+    return '#ERROR: Search query/URL must be a non-empty string';
+  }
+
+  try {
+    const apiKey = getSerperApiKey(); // Assumes this function exists in Config.js
+    if (!apiKey) {
+      return '#ERROR: Serper API key not configured';
+    }
+
+    let serperUrl;
+    let payload;
+
+    // Determine URL and Payload based on searchType
+    switch (searchType) {
+      case 'webpage':
+        serperUrl = 'https://scrape.serper.dev/'; // Note the different base URL
+        payload = JSON.stringify({ url: searchQuery });
+        break;
+      case 'news':
+        serperUrl = 'https://google.serper.dev/news';
+        payload = JSON.stringify({ q: searchQuery });
+        break;
+      case 'images':
+        serperUrl = 'https://google.serper.dev/images';
+        payload = JSON.stringify({ q: searchQuery });
+        break;
+      case 'maps':
+        serperUrl = 'https://google.serper.dev/maps';
+        payload = JSON.stringify({ q: searchQuery });
+        break;
+       case 'scholar':
+         serperUrl = 'https://google.serper.dev/scholar';
+         payload = JSON.stringify({ q: searchQuery });
+         break;
+      case 'search':
+      default: // Default to standard web search
+        serperUrl = 'https://google.serper.dev/search';
+        payload = JSON.stringify({ q: searchQuery });
+        searchType = 'search'; // Ensure type is set for logging
+        break;
+    }
+
+    const options = {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        'X-API-KEY': apiKey,
+        'Content-Type': 'application/json'
+      },
+      payload: payload,
+      muteHttpExceptions: true
+    };
+
+    Logger.log(`[SEARCH_SERPER] Calling Serper API (${searchType}) for query: "${searchQuery}"`);
+    const response = UrlFetchApp.fetch(serperUrl, options);
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+
+    if (responseCode >= 200 && responseCode < 300) { // Accept 2xx status codes
+      Logger.log(`[SEARCH_SERPER] Serper API call successful (Code: ${responseCode}). Response length: ${responseText.length}`);
+      // Return the raw JSON string as requested
+      return responseText; 
+    } else {
+      Logger.log(`[SEARCH_SERPER] Serper API error. Code: ${responseCode}. Response: ${responseText}`);
+      // Try to parse error message from Serper response if possible
+      let apiError = `API Error Code: ${responseCode}`;
+      try {
+         const errorJson = JSON.parse(responseText);
+         apiError = errorJson.message || apiError;
+      } catch (e) { /* Ignore parsing error, use code */ }
+      return `#ERROR: ${apiError}`;
+    }
+  } catch (error) {
+    Logger.log(`[SEARCH_SERPER] Unexpected error: ${error}`);
+    console.error('Error in SEARCH_SERPER custom function:', error);
+    return `#ERROR: ${error.message || 'Function execution failed'}`;
+  }
+}
+
 // Export functions if using modules with clasp
 // Add appropriate export syntax if needed based on your project setup
 if (typeof module !== 'undefined' && module.exports) {
@@ -285,6 +376,7 @@ if (typeof module !== 'undefined' && module.exports) {
     fetchWebPageAsMarkdown, 
     convertHtmlToBasicMarkdown,
     fetchWebPageAsMarkdownJina,
-    fetchAndParseSitemapUrls
+    fetchAndParseSitemapUrls,
+    SEARCH_SERPER
   };
 } 
