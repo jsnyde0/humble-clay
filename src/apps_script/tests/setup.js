@@ -178,10 +178,8 @@ global.showSidebar = jest.fn().mockImplementation(Code.showSidebar);
 // global.validateApiConfig is defined in Config.js now
 global.processRange = jest.fn().mockImplementation(Code.processRange);
 global.processPrompt = jest.fn().mockImplementation(Code.processPrompt);
-global.extractColumnReferences = jest.fn(template => {
-  const matches = template.match(/\{[A-Z]+\}/g) || [];
-  return [...new Set(matches.map(match => match.slice(1, -1)))];
-});
+global.extractColumnReferences = jest.fn(Code.extractColumnReferences);
+global.HUMBLECLAY_PROMPT = jest.fn().mockImplementation(Code.HUMBLECLAY_PROMPT);
 // global.columnToIndex is now in RangeUtils
 
 // WebFetcher

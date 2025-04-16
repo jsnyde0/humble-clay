@@ -313,9 +313,58 @@ function processPrompt(outputColumn, promptTemplate, startRow = null, endRow = n
 }
 
 /**
- * Extracts unique column references from a prompt template
- * @param {string} template - The prompt template
- * @returns {string[]} Array of column letters
+ * Sends a prompt constructed from concatenated arguments to the Humble Clay API.
+ *
+ * @param {...*} var_args One or more values to concatenate into the prompt string.
+ * @return {string} The API response text or an error message.
+ * @customfunction
+ */
+function HUMBLECLAY_PROMPT(...var_args) {
+  try {
+    // Concatenate all arguments into a single prompt string
+    // Ensure all arguments are converted to strings
+    const promptText = var_args.map(arg => {
+      if (arg === null || arg === undefined) {
+        return '';
+      }
+      return String(arg);
+    }).join('');
+
+    if (!promptText) {
+      return '#ERROR: No prompt provided';
+    }
+
+    // Call the API using the existing function from ApiClient.js
+    // makeApiRequest handles calling the batch endpoint with a single prompt
+    // and parsing the response.
+    Logger.log(`[HUMBLECLAY_PROMPT] Calling API with prompt: "${promptText.substring(0, 100)}..."`);
+    const result = makeApiRequest(promptText);
+
+    // Check the result from makeApiRequest
+    if (result && result.status === 'success' && result.response !== undefined) {
+       Logger.log(`[HUMBLECLAY_PROMPT] API call successful. Response length: ${result.response.length}`);
+      // Return the successful response content
+      return result.response;
+    } else {
+      // Log the error details if available
+      const errorMessage = result && result.error ? result.error : 'Unknown API error';
+      Logger.log(`[HUMBLECLAY_PROMPT] API call failed: ${errorMessage}`);
+      return `#ERROR: API Error - ${errorMessage}`;
+    }
+
+  } catch (error) {
+    // Catch errors from argument processing, makeApiRequest, or result handling
+    console.error('Error in HUMBLECLAY_PROMPT custom function:', error);
+    Logger.log(`[HUMBLECLAY_PROMPT] Caught error: ${error.message}`);
+    // Provide a generic error message back to the sheet cell
+    return `#ERROR: ${error.message || 'Function execution failed'}`;
+  }
+}
+
+/**
+ * Extracts column references (like {A}, {B}) from a template string
+ * @param {string} template The template string
+ * @returns {string[]} An array of unique column letters referenced
  */
 function extractColumnReferences(template) {
   const matches = template.match(/\{[A-Z]+\}/g) || [];
@@ -344,6 +393,9 @@ if (typeof module !== 'undefined' && module.exports) {
     processRange,
     processPrompt,
     showConfigDialog,
-    validateApiConfig
+    validateApiConfig,
+    HUMBLECLAY_PROMPT,
+    extractColumnReferences,
+    columnToIndex
   };
 } 

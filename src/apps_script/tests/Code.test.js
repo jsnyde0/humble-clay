@@ -459,4 +459,110 @@ describe('Code.js Globals', () => {
       });
     });
   });
+
+  // --- HUMBLECLAY_PROMPT tests ---
+  describe('HUMBLECLAY_PROMPT (Global)', () => {
+    beforeEach(() => {
+      // Ensure makeApiRequest is reset before each test in this suite
+      // Global mocks are typically reset by the beforeEach in setup.js,
+      // but explicit reset here ensures isolation for these tests.
+      if (global.makeApiRequest && global.makeApiRequest.mockReset) {
+         global.makeApiRequest.mockReset();
+      } else {
+         // Fallback or warning if the global mock setup is different
+         console.warn('Global makeApiRequest mock not found or not resettable');
+         global.makeApiRequest = jest.fn(); // Define a basic mock if missing
+      }
+    });
+
+    it('should concatenate arguments and call makeApiRequest successfully', () => {
+      // Arrange
+      const expectedPrompt = 'Test prompt part 1 and part 2 number 123';
+      const mockApiResponse = { status: 'success', response: 'API Success Response' };
+      global.makeApiRequest.mockReturnValue(mockApiResponse);
+
+      // Act
+      const result = HUMBLECLAY_PROMPT('Test prompt part 1', ' and part 2 ', 'number ', 123);
+
+      // Assert
+      expect(global.makeApiRequest).toHaveBeenCalledTimes(1);
+      expect(global.makeApiRequest).toHaveBeenCalledWith(expectedPrompt);
+      expect(result).toBe('API Success Response');
+    });
+
+    it('should handle null and undefined arguments gracefully', () => {
+      // Arrange
+      const expectedPrompt = 'StartEnd';
+      const mockApiResponse = { status: 'success', response: 'API Response for nulls' };
+      global.makeApiRequest.mockReturnValue(mockApiResponse);
+
+      // Act
+      const result = HUMBLECLAY_PROMPT('Start', null, undefined, 'End');
+
+      // Assert
+      expect(global.makeApiRequest).toHaveBeenCalledTimes(1);
+      expect(global.makeApiRequest).toHaveBeenCalledWith(expectedPrompt);
+      expect(result).toBe('API Response for nulls');
+    });
+
+    it('should return error if no arguments are provided resulting in empty prompt', () => {
+      // Act
+      const result = HUMBLECLAY_PROMPT();
+
+      // Assert
+      expect(global.makeApiRequest).not.toHaveBeenCalled();
+      expect(result).toBe('#ERROR: No prompt provided');
+    });
+     
+    it('should return error if arguments result in empty prompt', () => {
+        // Act
+        const result = HUMBLECLAY_PROMPT(null, undefined, '');
+
+        // Assert
+        expect(global.makeApiRequest).not.toHaveBeenCalled();
+        expect(result).toBe('#ERROR: No prompt provided');
+      });
+
+    it('should return error message from failed API call', () => {
+      // Arrange
+      const apiErrorMsg = 'Specific API failure reason';
+      const mockApiResponse = { status: 'error', error: apiErrorMsg };
+      global.makeApiRequest.mockReturnValue(mockApiResponse);
+
+      // Act
+      const result = HUMBLECLAY_PROMPT('Prompt that will fail');
+
+      // Assert
+      expect(global.makeApiRequest).toHaveBeenCalledTimes(1);
+      expect(result).toBe(`#ERROR: API Error - ${apiErrorMsg}`);
+    });
+    
+     it('should return generic error message if API response format is unexpected (missing response)', () => {
+        // Arrange
+        const mockApiResponse = { status: 'success', /* response field missing */ };
+        global.makeApiRequest.mockReturnValue(mockApiResponse);
+
+        // Act
+        const result = HUMBLECLAY_PROMPT('Prompt with unexpected response');
+
+        // Assert
+        expect(global.makeApiRequest).toHaveBeenCalledTimes(1);
+        expect(result).toBe('#ERROR: API Error - Unknown API error'); // Default error when structure is wrong
+    });
+
+    it('should return error message if makeApiRequest throws an exception', () => {
+      // Arrange
+      const exceptionMessage = 'Network connection failed';
+      global.makeApiRequest.mockImplementation(() => {
+        throw new Error(exceptionMessage);
+      });
+
+      // Act
+      const result = HUMBLECLAY_PROMPT('Prompt causing exception');
+
+      // Assert
+      expect(global.makeApiRequest).toHaveBeenCalledTimes(1);
+      expect(result).toBe(`#ERROR: ${exceptionMessage}`);
+    });
+  });
 }); 
