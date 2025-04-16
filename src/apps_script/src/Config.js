@@ -260,8 +260,8 @@ function validateJinaApiKey(apiKey) {
   if (!apiKey || typeof apiKey !== 'string') {
     return false;
   }
-  // Check prefix and exact total length (5 + 32 + 6 + 24 = 67)
-  return apiKey.startsWith('jina_') && apiKey.length === 67;
+  // Reverting to ultra-simplified validation: Only check prefix
+  return apiKey.startsWith('jina_');
 }
 
 /**

@@ -158,10 +158,11 @@ describe('Config', () => {
         expect(realValidateJinaApiKey('')).toBe(false); // Empty
         expect(realValidateJinaApiKey(base.replace('jina_', 'jin_'))).toBe(false); // Wrong prefix
         expect(realValidateJinaApiKey(base.substring(5))).toBe(false); // Prefix missing
-        expect(realValidateJinaApiKey(base.substring(0, base.length - 1))).toBe(false); // Too short
-        expect(realValidateJinaApiKey(base + 'a')).toBe(false); // Too long
-        expect(realValidateJinaApiKey(base.replace('abc12-', 'abc*2-'))).toBe(true); // Contains jina_ prefix, correct length
-        expect(realValidateJinaApiKey(base.replace('bbbbbb', 'bbb!bb'))).toBe(true); // Contains jina_ prefix, correct length
+        // These now pass validation because they start with jina_
+        expect(realValidateJinaApiKey(base.substring(0, base.length - 1))).toBe(true); // Too short, but starts with jina_
+        expect(realValidateJinaApiKey(base + 'a')).toBe(true); // Too long, but starts with jina_
+        expect(realValidateJinaApiKey(base.replace('abc12-', 'abc*2-'))).toBe(true); // Contains jina_ prefix
+        expect(realValidateJinaApiKey(base.replace('bbbbbb', 'bbb!bb'))).toBe(true); // Contains jina_ prefix
       });
     });
 
