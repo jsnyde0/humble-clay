@@ -260,8 +260,8 @@ function validateJinaApiKey(apiKey) {
   if (!apiKey || typeof apiKey !== 'string') {
     return false;
   }
-  // Jina keys seem to be shorter, alphanumeric often
-  return apiKey.length > 10 && /^[a-zA-Z0-9]+$/.test(apiKey); 
+  // Check prefix and exact total length (5 + 32 + 6 + 24 = 67)
+  return apiKey.startsWith('jina_') && apiKey.length === 67;
 }
 
 /**
@@ -295,8 +295,9 @@ function validateSerperApiKey(apiKey) {
   if (!apiKey || typeof apiKey !== 'string') {
     return false;
   }
-  // Basic check for 64 hex characters
-  return apiKey.length === 64 && /^[a-f0-9]+$/i.test(apiKey);
+  // Remove the strict length check, just validate it contains only hex characters
+  // Optionally add a minimum length if needed, e.g., apiKey.length > 10
+  return /^[a-f0-9]+$/i.test(apiKey);
 }
 
 /**

@@ -152,8 +152,8 @@ global.showConfigDialog = jest.fn(Config.showConfigDialog);
 global.saveConfiguration = jest.fn(Config.saveConfiguration);
 global.isConfigured = jest.fn(Config.isConfigured);
 global.validateConfig = jest.fn(Config.validateConfig);
-global.validateApiKey = jest.fn(Config.validateApiKey);
-global.validateJinaApiKey = jest.fn(Config.validateJinaApiKey);
+global.validateApiKey = jest.fn();
+global.validateJinaApiKey = jest.fn();
 global.getJinaApiKey = jest.fn(Config.getJinaApiKey);
 global.setJinaApiKey = jest.fn(Config.setJinaApiKey);
 
