@@ -3,11 +3,12 @@ name = "humble-clay"
 version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.12"
-description = "A Humble API version of Clay's AI Agent for Google Sheets Apps Script."
+description = "A Humble version of Clay on top of Google Sheets."
 authors = [
     { name = "Jonatan" }
 ]
 dependencies = [
+    "asgi-lifespan>=2.1.0",
     "fastapi>=0.115.12",
     "httpx>=0.28.1",
     "instructor>=1.7.8",

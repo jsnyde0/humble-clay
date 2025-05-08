@@ -662,6 +662,7 @@ name = "humble-clay"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "asgi-lifespan" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "instructor" },
@@ -680,6 +681,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "asgi-lifespan", specifier = ">=2.1.0" },
     { name = "fastapi", specifier = ">=0.115.12" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "instructor", specifier = ">=1.7.8" },
