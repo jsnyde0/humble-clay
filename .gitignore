@@ -176,7 +176,6 @@ cython_debug/
 # temp folders
 /pipeline
 /models
-/api
 
 # Node.js specific
 node_modules/
